@@ -16,6 +16,7 @@
 #include <uxtheme.h>
 #include <gdiplus.h>
 #include <algorithm>
+#include <vector>
 
 #include "resource.h"
 #include "core/types.h"
@@ -39,6 +40,228 @@ static std::wstring MenuLabelForContext(const std::wstring &menuText)
         cleaned.erase(tabPos);
     cleaned.erase(std::remove(cleaned.begin(), cleaned.end(), L'&'), cleaned.end());
     return cleaned;
+}
+
+struct DocumentTabState
+{
+    std::wstring text;
+    std::wstring filePath;
+    bool modified = false;
+    Encoding encoding = Encoding::UTF8;
+    LineEnding lineEnding = LineEnding::CRLF;
+};
+
+static std::vector<DocumentTabState> g_documents;
+static int g_activeDocument = -1;
+static bool g_switchingDocument = false;
+
+static std::wstring DocumentTabLabel(const DocumentTabState &doc)
+{
+    const auto &lang = GetLangStrings();
+    std::wstring label = doc.filePath.empty() ? lang.untitled : PathFindFileNameW(doc.filePath.c_str());
+    if (doc.modified)
+        label.insert(label.begin(), L'*');
+    return label;
+}
+
+static void SetDocumentTabLabel(int index)
+{
+    if (!g_hwndTabs || index < 0 || index >= static_cast<int>(g_documents.size()))
+        return;
+
+    TCITEMW item{};
+    item.mask = TCIF_TEXT;
+    std::wstring label = DocumentTabLabel(g_documents[index]);
+    item.pszText = label.data();
+    TabCtrl_SetItem(g_hwndTabs, index, &item);
+}
+
+static void SyncDocumentFromState(int index, bool includeText)
+{
+    if (index < 0 || index >= static_cast<int>(g_documents.size()))
+        return;
+
+    DocumentTabState &doc = g_documents[index];
+    if (includeText)
+        doc.text = GetEditorText();
+    doc.filePath = g_state.filePath;
+    doc.modified = g_state.modified;
+    doc.encoding = g_state.encoding;
+    doc.lineEnding = g_state.lineEnding;
+    SetDocumentTabLabel(index);
+}
+
+static void LoadStateFromDocument(int index)
+{
+    if (index < 0 || index >= static_cast<int>(g_documents.size()))
+        return;
+
+    g_switchingDocument = true;
+    const DocumentTabState &doc = g_documents[index];
+    g_state.filePath = doc.filePath;
+    g_state.modified = doc.modified;
+    g_state.encoding = doc.encoding;
+    g_state.lineEnding = doc.lineEnding;
+    SetEditorText(doc.text);
+    UpdateTitle();
+    UpdateStatus();
+    SetDocumentTabLabel(index);
+    g_switchingDocument = false;
+    SetFocus(g_hwndEditor);
+}
+
+static void SwitchToDocument(int index)
+{
+    if (index < 0 || index >= static_cast<int>(g_documents.size()))
+        return;
+    if (index == g_activeDocument)
+        return;
+
+    if (g_activeDocument >= 0)
+        SyncDocumentFromState(g_activeDocument, true);
+
+    g_activeDocument = index;
+    if (g_hwndTabs)
+        TabCtrl_SetCurSel(g_hwndTabs, index);
+    LoadStateFromDocument(index);
+}
+
+static void RefreshAllDocumentTabLabels()
+{
+    for (int i = 0; i < static_cast<int>(g_documents.size()); ++i)
+        SetDocumentTabLabel(i);
+}
+
+static void CreateInitialDocumentTabIfNeeded()
+{
+    if (!g_hwndTabs || !g_documents.empty())
+        return;
+
+    DocumentTabState doc;
+    doc.text = GetEditorText();
+    doc.filePath = g_state.filePath;
+    doc.modified = g_state.modified;
+    doc.encoding = g_state.encoding;
+    doc.lineEnding = g_state.lineEnding;
+
+    g_documents.push_back(doc);
+    g_activeDocument = 0;
+
+    TCITEMW item{};
+    item.mask = TCIF_TEXT;
+    std::wstring label = DocumentTabLabel(doc);
+    item.pszText = label.data();
+    TabCtrl_InsertItem(g_hwndTabs, 0, &item);
+    TabCtrl_SetCurSel(g_hwndTabs, 0);
+}
+
+static void CreateNewDocumentTab()
+{
+    if (g_activeDocument >= 0)
+        SyncDocumentFromState(g_activeDocument, true);
+
+    DocumentTabState doc;
+    g_documents.push_back(doc);
+    int index = static_cast<int>(g_documents.size()) - 1;
+
+    if (g_hwndTabs)
+    {
+        TCITEMW item{};
+        item.mask = TCIF_TEXT;
+        std::wstring label = DocumentTabLabel(doc);
+        item.pszText = label.data();
+        TabCtrl_InsertItem(g_hwndTabs, index, &item);
+        TabCtrl_SetCurSel(g_hwndTabs, index);
+    }
+
+    g_activeDocument = index;
+    LoadStateFromDocument(index);
+}
+
+static bool OpenPathInNewDocumentTab(const std::wstring &path)
+{
+    if (path.empty())
+        return false;
+
+    CreateNewDocumentTab();
+    LoadFile(path);
+    SyncDocumentFromState(g_activeDocument, true);
+    return true;
+}
+
+static void OpenFileInNewDocumentTabDialog()
+{
+    wchar_t path[MAX_PATH] = {};
+    OPENFILENAMEW ofn{};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = g_hwndMain;
+    ofn.lpstrFilter = L"Text Documents (*.txt)\0*.txt\0All Files (*.*)\0*.*\0";
+    ofn.lpstrFile = path;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.Flags = OFN_FILEMUSTEXIST | OFN_HIDEREADONLY | OFN_ENABLESIZING;
+    if (GetOpenFileNameW(&ofn))
+        OpenPathInNewDocumentTab(path);
+}
+
+static void CloseCurrentDocumentTab()
+{
+    if (g_activeDocument < 0 || g_activeDocument >= static_cast<int>(g_documents.size()))
+        return;
+
+    if (g_documents.size() <= 1)
+    {
+        if (!ConfirmDiscard())
+            return;
+        FileNew();
+        SyncDocumentFromState(g_activeDocument, true);
+        return;
+    }
+
+    if (!ConfirmDiscard())
+        return;
+
+    const int closingIndex = g_activeDocument;
+    g_documents.erase(g_documents.begin() + closingIndex);
+    if (g_hwndTabs)
+        TabCtrl_DeleteItem(g_hwndTabs, closingIndex);
+
+    int nextIndex = closingIndex;
+    if (nextIndex >= static_cast<int>(g_documents.size()))
+        nextIndex = static_cast<int>(g_documents.size()) - 1;
+
+    g_activeDocument = nextIndex;
+    if (g_hwndTabs)
+        TabCtrl_SetCurSel(g_hwndTabs, nextIndex);
+    LoadStateFromDocument(nextIndex);
+    RefreshAllDocumentTabLabels();
+}
+
+static bool ConfirmDiscardAllDocuments()
+{
+    if (g_documents.empty())
+        return ConfirmDiscard();
+
+    if (g_activeDocument >= 0)
+        SyncDocumentFromState(g_activeDocument, true);
+
+    const int originalIndex = g_activeDocument;
+    for (int i = 0; i < static_cast<int>(g_documents.size()); ++i)
+    {
+        if (g_activeDocument != i)
+            SwitchToDocument(i);
+
+        if (!ConfirmDiscard())
+        {
+            if (originalIndex >= 0 && originalIndex < static_cast<int>(g_documents.size()))
+                SwitchToDocument(originalIndex);
+            return false;
+        }
+        SyncDocumentFromState(i, true);
+    }
+
+    if (originalIndex >= 0 && originalIndex < static_cast<int>(g_documents.size()))
+        SwitchToDocument(originalIndex);
+    return true;
 }
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -77,6 +300,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                                        0, 0, 100, 100, hwnd, reinterpret_cast<HMENU>(IDC_EDITOR), GetModuleHandleW(nullptr), nullptr);
         g_origEditorProc = reinterpret_cast<WNDPROC>(SetWindowLongPtrW(g_hwndEditor, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(EditorSubclassProc)));
         ConfigureEditorControl(g_hwndEditor);
+        g_hwndTabs = CreateWindowExW(0, WC_TABCONTROLW, L"",
+                                     WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_TABSTOP,
+                                     0, 0, 100, 30, hwnd, reinterpret_cast<HMENU>(IDC_TABS), GetModuleHandleW(nullptr), nullptr);
+        if (g_hwndTabs)
+        {
+            HFONT hFont = reinterpret_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
+            SendMessageW(g_hwndTabs, WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
+        }
         g_hwndStatus = CreateWindowExW(0, STATUSCLASSNAMEW, nullptr,
                                        WS_CHILD | WS_VISIBLE | SBARS_SIZEGRIP, 0, 0, 0, 0, hwnd, reinterpret_cast<HMENU>(IDC_STATUSBAR), GetModuleHandleW(nullptr), nullptr);
         g_origStatusProc = reinterpret_cast<WNDPROC>(SetWindowLongPtrW(g_hwndStatus, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(StatusSubclassProc)));
@@ -116,6 +347,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             LoadBackgroundImage(g_state.background.imagePath);
             SetBackgroundPosition(g_state.background.position);
         }
+        CreateInitialDocumentTabIfNeeded();
         UpdateTitle();
         ResizeControls();
         UpdateStatus();
@@ -237,10 +469,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         HDROP hDrop = reinterpret_cast<HDROP>(wParam);
         wchar_t path[MAX_PATH];
         if (DragQueryFileW(hDrop, 0, path, MAX_PATH))
-        {
-            if (ConfirmDiscard())
-                LoadFile(path);
-        }
+            OpenPathInNewDocumentTab(path);
         DragFinish(hDrop);
         return 0;
     }
@@ -352,12 +581,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         WORD cmd = LOWORD(wParam);
         if (cmd == IDC_EDITOR && HIWORD(wParam) == EN_CHANGE)
         {
+            if (g_switchingDocument)
+                return 0;
             if (!g_state.modified)
             {
                 g_state.modified = true;
                 UpdateTitle();
             }
             UpdateStatus();
+            SyncDocumentFromState(g_activeDocument, false);
             return 0;
         }
 
@@ -365,19 +597,19 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         {
             int idx = cmd - IDM_FILE_RECENT_BASE;
             if (idx < static_cast<int>(g_state.recentFiles.size()))
-            {
-                if (ConfirmDiscard())
-                    LoadFile(g_state.recentFiles[idx]);
-            }
+                OpenPathInNewDocumentTab(g_state.recentFiles[idx]);
             return 0;
         }
         switch (cmd)
         {
         case IDM_FILE_NEW:
-            FileNew();
+            CreateNewDocumentTab();
             break;
         case IDM_FILE_OPEN:
-            FileOpen();
+            OpenFileInNewDocumentTabDialog();
+            break;
+        case IDM_FILE_CLOSETAB:
+            CloseCurrentDocumentTab();
             break;
         case IDM_FILE_SAVE:
             FileSave();
@@ -392,7 +624,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             FilePageSetup();
             break;
         case IDM_FILE_EXIT:
-            if (ConfirmDiscard())
+            if (ConfirmDiscardAllDocuments())
                 DestroyWindow(hwnd);
             break;
         case IDM_EDIT_UNDO:
@@ -519,6 +751,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             UpdateMenuStrings();
             UpdateRecentFilesMenu();
             UpdateLanguageMenu();
+            RefreshAllDocumentTabLabels();
             UpdateTitle();
             UpdateStatus();
             break;
@@ -532,6 +765,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             UpdateMenuStrings();
             UpdateRecentFilesMenu();
             UpdateLanguageMenu();
+            RefreshAllDocumentTabLabels();
             UpdateTitle();
             UpdateStatus();
             break;
@@ -551,11 +785,18 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             HelpAbout();
             break;
         }
+        SyncDocumentFromState(g_activeDocument, false);
         return 0;
     }
     case WM_NOTIFY:
     {
         NMHDR *pnmh = reinterpret_cast<NMHDR *>(lParam);
+        if (pnmh->hwndFrom == g_hwndTabs && pnmh->code == TCN_SELCHANGE)
+        {
+            int index = TabCtrl_GetCurSel(g_hwndTabs);
+            SwitchToDocument(index);
+            return 0;
+        }
         if (pnmh->hwndFrom == g_hwndStatus && pnmh->code == NM_CUSTOMDRAW)
         {
             if (IsDarkMode())
@@ -594,7 +835,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         if (g_state.closing)
             return 0;
         g_state.closing = true;
-        if (ConfirmDiscard())
+        if (ConfirmDiscardAllDocuments())
             DestroyWindow(hwnd);
         else
             g_state.closing = false;
@@ -733,6 +974,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR lpCmdLine, int nCmdSh
         if (path.front() == L'"' && path.back() == L'"')
             path = path.substr(1, path.size() - 2);
         LoadFile(path);
+        SyncDocumentFromState(g_activeDocument, true);
     }
 
     MSG msg;

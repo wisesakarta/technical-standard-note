@@ -70,6 +70,12 @@ void ResizeControls()
 {
     RECT rc;
     GetClientRect(g_hwndMain, &rc);
+    int tabsH = 0;
+    if (g_hwndTabs)
+    {
+        tabsH = 30;
+        MoveWindow(g_hwndTabs, 0, 0, rc.right, tabsH, TRUE);
+    }
     int statusH = 0;
     if (g_state.showStatusBar)
     {
@@ -81,6 +87,6 @@ void ResizeControls()
     }
     else
         ShowWindow(g_hwndStatus, SW_HIDE);
-    MoveWindow(g_hwndEditor, 0, 0, rc.right, rc.bottom - statusH, TRUE);
+    MoveWindow(g_hwndEditor, 0, tabsH, rc.right, rc.bottom - statusH - tabsH, TRUE);
     SetupStatusBarParts();
 }

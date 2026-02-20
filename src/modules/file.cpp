@@ -322,5 +322,17 @@ void UpdateRecentFilesMenu()
         std::wstring display = PathFindFileNameW(file.c_str());
         AppendMenuW(hRecentMenu, MF_STRING, id++, display.c_str());
     }
-    InsertMenuW(hFileMenu, 5, MF_BYPOSITION | MF_POPUP, reinterpret_cast<UINT_PTR>(hRecentMenu), lang.menuRecentFiles.c_str());
+    int insertPos = GetMenuItemCount(hFileMenu);
+    MENUITEMINFOW mii = {};
+    mii.cbSize = sizeof(mii);
+    mii.fMask = MIIM_ID;
+    for (int i = 0; i < insertPos; ++i)
+    {
+        if (GetMenuItemInfoW(hFileMenu, static_cast<UINT>(i), TRUE, &mii) && mii.wID == IDM_FILE_PRINT)
+        {
+            insertPos = i;
+            break;
+        }
+    }
+    InsertMenuW(hFileMenu, static_cast<UINT>(insertPos), MF_BYPOSITION | MF_POPUP, reinterpret_cast<UINT_PTR>(hRecentMenu), lang.menuRecentFiles.c_str());
 }

@@ -10,6 +10,7 @@
 HWND g_hwndMain = nullptr;
 HWND g_hwndEditor = nullptr;
 HWND g_hwndStatus = nullptr;
+HWND g_hwndTabs = nullptr;
 HWND g_hwndFindDlg = nullptr;
 HACCEL g_hAccel = nullptr;
 AppState g_state;
