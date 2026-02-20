@@ -76,6 +76,16 @@ std::pair<int, int> GetCursorPos()
     return {line + 1, col + 1};
 }
 
+void ConfigureEditorControl(HWND hwnd)
+{
+    if (!hwnd)
+        return;
+
+    // Keep RichEdit in plain-text mode and disable URL auto-detection for security/perf.
+    SendMessageW(hwnd, EM_SETTEXTMODE, TM_PLAINTEXT | TM_MULTILEVELUNDO | TM_MULTICODEPAGE, 0);
+    SendMessageW(hwnd, EM_AUTOURLDETECT, FALSE, 0);
+}
+
 void ApplyFont()
 {
     if (g_state.hFont)
@@ -120,6 +130,7 @@ void ApplyWordWrap()
     g_hwndEditor = CreateWindowExW(0, editorClass, nullptr, style,
                                    0, 0, 100, 100, g_hwndMain, reinterpret_cast<HMENU>(IDC_EDITOR), GetModuleHandleW(nullptr), nullptr);
     g_origEditorProc = reinterpret_cast<WNDPROC>(SetWindowLongPtrW(g_hwndEditor, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(EditorSubclassProc)));
+    ConfigureEditorControl(g_hwndEditor);
     SendMessageW(g_hwndEditor, EM_EXLIMITTEXT, 0, static_cast<LPARAM>(-1));
     SendMessageW(g_hwndEditor, EM_SETEVENTMASK, 0, ENM_CHANGE | ENM_SELCHANGE);
     ApplyFont();

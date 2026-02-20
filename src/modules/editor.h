@@ -13,6 +13,7 @@
 std::wstring GetEditorText();
 void SetEditorText(const std::wstring &text);
 std::pair<int, int> GetCursorPos();
+void ConfigureEditorControl(HWND hwnd);
 void ApplyFont();
 void ApplyZoom();
 void ApplyWordWrap();
