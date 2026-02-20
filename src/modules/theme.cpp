@@ -1,13 +1,5 @@
 /*
-   ▄████████  ▄██████▄     ▄████████  ▄█        ▄██████▄   ▄██████▄     ▄███████▄
-  ███    ███ ███    ███   ███    ███ ███       ███    ███ ███    ███   ███    ███
-  ███    █▀  ███    ███   ███    ███ ███       ███    ███ ███    ███   ███    ███
- ▄███▄▄▄     ███    ███  ▄███▄▄▄▄██▀ ███       ███    ███ ███    ███   ███    ███
-▀▀███▀▀▀     ███    ███ ▀▀███▀▀▀▀▀   ███       ███    ███ ███    ███ ▀█████████▀
-  ███        ███    ███ ▀███████████ ███       ███    ███ ███    ███   ███
-  ███        ███    ███   ███    ███ ███▌    ▄ ███    ███ ███    ███   ███
-  ███         ▀██████▀    ███    ███ █████▄▄██  ▀██████▀   ▀██████▀   ▄████▀
-                          ███    ███ ▀
+  Saka Studio & Engineering
 
   Theme management implementation with Windows dark mode API integration support.
   Controls visual appearance of title bar, menu bar, editor, and status controls.
@@ -20,6 +12,7 @@
 #include "core/types.h"
 #include "core/globals.h"
 #include "resource.h"
+#include "settings.h"
 
 bool SetTitleBarDark(HWND hwnd, BOOL dark)
 {
@@ -69,6 +62,44 @@ bool IsDarkMode()
         RegCloseKey(hKey);
     }
     return false;
+}
+
+static void ApplyUxthemeDarkPreference(HWND hwnd, BOOL dark)
+{
+    if (!hwnd)
+        return;
+
+    HMODULE hUxtheme = GetModuleHandleW(L"uxtheme.dll");
+    if (!hUxtheme)
+        return;
+
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+    auto allowDarkModeForWindow = reinterpret_cast<fnAllowDarkModeForWindow>(GetProcAddress(hUxtheme, MAKEINTRESOURCEA(133)));
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
+    if (allowDarkModeForWindow)
+        allowDarkModeForWindow(hwnd, dark);
+}
+
+void ApplyThemeToWindowTree(HWND hwnd)
+{
+    if (!hwnd)
+        return;
+
+    const BOOL dark = IsDarkMode() ? TRUE : FALSE;
+    ApplyUxthemeDarkPreference(hwnd, dark);
+    SetWindowTheme(hwnd, dark ? L"DarkMode_Explorer" : nullptr, nullptr);
+    SetTitleBarDark(hwnd, dark);
+
+    for (HWND child = GetWindow(hwnd, GW_CHILD); child; child = GetWindow(child, GW_HWNDNEXT))
+    {
+        ApplyUxthemeDarkPreference(child, dark);
+        SetWindowTheme(child, dark ? L"DarkMode_Explorer" : nullptr, nullptr);
+    }
 }
 
 LRESULT CALLBACK StatusSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -142,13 +173,6 @@ void ApplyTheme()
         auto refreshPolicy = reinterpret_cast<fnRefreshImmersiveColorPolicyState>(GetProcAddress(hUxtheme, MAKEINTRESOURCEA(104)));
         if (refreshPolicy)
             refreshPolicy();
-        auto allowDarkModeForWindow = reinterpret_cast<fnAllowDarkModeForWindow>(GetProcAddress(hUxtheme, MAKEINTRESOURCEA(133)));
-        if (allowDarkModeForWindow)
-        {
-            allowDarkModeForWindow(g_hwndMain, dark);
-            allowDarkModeForWindow(g_hwndStatus, dark);
-            allowDarkModeForWindow(g_hwndEditor, dark);
-        }
         auto flushMenuThemes = reinterpret_cast<fnFlushMenuThemes>(GetProcAddress(hUxtheme, MAKEINTRESOURCEA(136)));
         if (flushMenuThemes)
             flushMenuThemes();
@@ -162,6 +186,10 @@ void ApplyTheme()
             g_hbrStatusDark = CreateSolidBrush(RGB(45, 45, 45));
         if (!g_hbrMenuDark)
             g_hbrMenuDark = CreateSolidBrush(RGB(45, 45, 45));
+        if (!g_hbrDialogDark)
+            g_hbrDialogDark = CreateSolidBrush(RGB(45, 45, 45));
+        if (!g_hbrDialogEditDark)
+            g_hbrDialogEditDark = CreateSolidBrush(RGB(30, 30, 30));
     }
     else
     {
@@ -175,11 +203,18 @@ void ApplyTheme()
             DeleteObject(g_hbrMenuDark);
             g_hbrMenuDark = nullptr;
         }
+        if (g_hbrDialogDark)
+        {
+            DeleteObject(g_hbrDialogDark);
+            g_hbrDialogDark = nullptr;
+        }
+        if (g_hbrDialogEditDark)
+        {
+            DeleteObject(g_hbrDialogEditDark);
+            g_hbrDialogEditDark = nullptr;
+        }
     }
-    SetTitleBarDark(g_hwndMain, dark);
-    SetWindowTheme(g_hwndEditor, dark ? L"DarkMode_Explorer" : nullptr, nullptr);
-    SetWindowTheme(g_hwndStatus, dark ? L"DarkMode_Explorer" : nullptr, nullptr);
-    SetWindowTheme(g_hwndMain, dark ? L"DarkMode_Explorer" : nullptr, nullptr);
+    ApplyThemeToWindowTree(g_hwndMain);
     COLORREF bgColor = dark ? RGB(30, 30, 30) : GetSysColor(COLOR_WINDOW);
     COLORREF textColor = dark ? RGB(255, 255, 255) : GetSysColor(COLOR_WINDOWTEXT);
     SendMessageW(g_hwndEditor, EM_SETBKGNDCOLOR, 0, bgColor);
@@ -190,6 +225,8 @@ void ApplyTheme()
     SendMessageW(g_hwndEditor, EM_SETCHARFORMAT, SCF_ALL, reinterpret_cast<LPARAM>(&cf));
     SendMessageW(g_hwndEditor, EM_SETCHARFORMAT, SCF_DEFAULT, reinterpret_cast<LPARAM>(&cf));
     SendMessageW(g_hwndStatus, SB_SETBKCOLOR, 0, dark ? RGB(45, 45, 45) : CLR_DEFAULT);
+    if (g_hwndFindDlg)
+        ApplyThemeToWindowTree(g_hwndFindDlg);
     CheckMenuItem(GetMenu(g_hwndMain), IDM_VIEW_DARKMODE, MF_BYCOMMAND | (dark ? MF_CHECKED : MF_UNCHECKED));
     InvalidateRect(g_hwndEditor, nullptr, TRUE);
     InvalidateRect(g_hwndStatus, nullptr, TRUE);
@@ -201,4 +238,5 @@ void ToggleDarkMode()
 {
     g_state.theme = IsDarkMode() ? Theme::Light : Theme::Dark;
     ApplyTheme();
+    SaveFontSettings();
 }

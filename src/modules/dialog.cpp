@@ -1,13 +1,5 @@
 /*
-   ▄████████  ▄██████▄     ▄████████  ▄█        ▄██████▄   ▄██████▄     ▄███████▄
-  ███    ███ ███    ███   ███    ███ ███       ███    ███ ███    ███   ███    ███
-  ███    █▀  ███    ███   ███    ███ ███       ███    ███ ███    ███   ███    ███
- ▄███▄▄▄     ███    ███  ▄███▄▄▄▄██▀ ███       ███    ███ ███    ███   ███    ███
-▀▀███▀▀▀     ███    ███ ▀▀███▀▀▀▀▀   ███       ███    ███ ███    ███ ▀█████████▀
-  ███        ███    ███ ▀███████████ ███       ███    ███ ███    ███   ███
-  ███        ███    ███   ███    ███ ███▌    ▄ ███    ███ ███    ███   ███
-  ███         ▀██████▀    ███    ███ █████▄▄██  ▀██████▀   ▀██████▀   ▄████▀
-                          ███    ███ ▀
+  Saka Studio & Engineering
 
   Dialog box implementations for find, replace, goto, font selection, and more.
   Provides modeless and modal dialog creation with proper event handling.
@@ -18,11 +10,79 @@
 #include "editor.h"
 #include "ui.h"
 #include "settings.h"
+#include "theme.h"
 #include "lang/lang.h"
 #include <commdlg.h>
 #include <richedit.h>
 #include <algorithm>
 #include <cwctype>
+
+namespace
+{
+constexpr COLORREF kDialogDarkBg = RGB(45, 45, 45);
+constexpr COLORREF kDialogDarkEditBg = RGB(30, 30, 30);
+constexpr COLORREF kDialogDarkText = RGB(240, 240, 240);
+
+void ApplyDialogTheme(HWND hDlg)
+{
+    if (!hDlg)
+        return;
+    ApplyThemeToWindowTree(hDlg);
+    InvalidateRect(hDlg, nullptr, TRUE);
+    UpdateWindow(hDlg);
+}
+
+INT_PTR HandleDialogPaint(HWND hDlg)
+{
+    PAINTSTRUCT ps{};
+    HDC hdc = BeginPaint(hDlg, &ps);
+
+    HBRUSH hBrush = nullptr;
+    HBRUSH hTmpBrush = nullptr;
+    if (IsDarkMode())
+    {
+        hBrush = g_hbrDialogDark;
+        if (!hBrush)
+        {
+            hTmpBrush = CreateSolidBrush(kDialogDarkBg);
+            hBrush = hTmpBrush;
+        }
+    }
+    else
+    {
+        hBrush = GetSysColorBrush(COLOR_BTNFACE);
+    }
+
+    FillRect(hdc, &ps.rcPaint, hBrush);
+    EndPaint(hDlg, &ps);
+    if (hTmpBrush)
+        DeleteObject(hTmpBrush);
+    return TRUE;
+}
+
+INT_PTR HandleDialogCtlColor(UINT msg, WPARAM wParam)
+{
+    if (!IsDarkMode())
+    {
+        if (msg == WM_CTLCOLOREDIT)
+            return reinterpret_cast<INT_PTR>(GetSysColorBrush(COLOR_WINDOW));
+        return reinterpret_cast<INT_PTR>(GetSysColorBrush(COLOR_BTNFACE));
+    }
+
+    HDC hdc = reinterpret_cast<HDC>(wParam);
+    SetTextColor(hdc, kDialogDarkText);
+    if (msg == WM_CTLCOLOREDIT)
+    {
+        SetBkColor(hdc, kDialogDarkEditBg);
+        SetBkMode(hdc, OPAQUE);
+        return reinterpret_cast<INT_PTR>(g_hbrDialogEditDark ? g_hbrDialogEditDark : GetStockObject(BLACK_BRUSH));
+    }
+
+    SetBkMode(hdc, TRANSPARENT);
+    SetBkColor(hdc, kDialogDarkBg);
+    return reinterpret_cast<INT_PTR>(g_hbrDialogDark ? g_hbrDialogDark : GetStockObject(BLACK_BRUSH));
+}
+}
 
 void DoFind(bool forward)
 {
@@ -145,19 +205,12 @@ INT_PTR CALLBACK FindDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
         }
         break;
     case WM_PAINT:
-    {
-        PAINTSTRUCT ps;
-        HDC hdc = BeginPaint(hDlg, &ps);
-        HBRUSH hBrush = CreateSolidBrush(GetSysColor(COLOR_BTNFACE));
-        FillRect(hdc, &ps.rcPaint, hBrush);
-        DeleteObject(hBrush);
-        EndPaint(hDlg, &ps);
-        return FALSE;
-    }
+        return HandleDialogPaint(hDlg);
+    case WM_CTLCOLOREDIT:
     case WM_CTLCOLORSTATIC:
     case WM_CTLCOLORBTN:
     case WM_CTLCOLORDLG:
-        return reinterpret_cast<INT_PTR>(GetSysColorBrush(COLOR_BTNFACE));
+        return HandleDialogCtlColor(msg, wParam);
     case WM_CLOSE:
         DestroyWindow(hDlg);
         g_hwndFindDlg = nullptr;
@@ -191,8 +244,7 @@ void EditFind()
         for (HWND h = GetWindow(g_hwndFindDlg, GW_CHILD); h; h = GetWindow(h, GW_HWNDNEXT))
             SendMessageW(h, WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
         SetWindowLongPtrW(g_hwndFindDlg, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(FindDlgProc));
-        InvalidateRect(g_hwndFindDlg, nullptr, FALSE);
-        UpdateWindow(g_hwndFindDlg);
+        ApplyDialogTheme(g_hwndFindDlg);
     }
 }
 
@@ -233,8 +285,7 @@ void EditReplace()
         for (HWND h = GetWindow(g_hwndFindDlg, GW_CHILD); h; h = GetWindow(h, GW_HWNDNEXT))
             SendMessageW(h, WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
         SetWindowLongPtrW(g_hwndFindDlg, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(FindDlgProc));
-        InvalidateRect(g_hwndFindDlg, nullptr, FALSE);
-        UpdateWindow(g_hwndFindDlg);
+        ApplyDialogTheme(g_hwndFindDlg);
     }
 }
 
@@ -242,6 +293,13 @@ INT_PTR CALLBACK GotoDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     switch (msg)
     {
+    case WM_PAINT:
+        return HandleDialogPaint(hDlg);
+    case WM_CTLCOLOREDIT:
+    case WM_CTLCOLORSTATIC:
+    case WM_CTLCOLORBTN:
+    case WM_CTLCOLORDLG:
+        return HandleDialogCtlColor(msg, wParam);
     case WM_COMMAND:
         if (LOWORD(wParam) == IDOK)
         {
@@ -306,6 +364,7 @@ void EditGoto()
             SendMessageW(h, WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
 
         SetWindowLongPtrW(hDlg, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(GotoDlgProc));
+        ApplyDialogTheme(hDlg);
         SetFocus(hEdit);
     }
 }
@@ -349,6 +408,24 @@ void FormatFont()
     }
 }
 
+static INT_PTR CALLBACK TransparencyDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (msg)
+    {
+    case WM_PAINT:
+        return HandleDialogPaint(hDlg);
+    case WM_CTLCOLOREDIT:
+    case WM_CTLCOLORSTATIC:
+    case WM_CTLCOLORBTN:
+    case WM_CTLCOLORDLG:
+        return HandleDialogCtlColor(msg, wParam);
+    case WM_CLOSE:
+        DestroyWindow(hDlg);
+        return TRUE;
+    }
+    return DefDlgProcW(hDlg, msg, wParam, lParam);
+}
+
 void ViewTransparency()
 {
     const auto &lang = GetLangStrings();
@@ -358,21 +435,27 @@ void ViewTransparency()
     HWND hDlg = CreateWindowExW(WS_EX_DLGMODALFRAME, L"#32770", lang.dialogTransparency.c_str(),
                                 WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_VISIBLE, 300, 300, 280, 110,
                                 g_hwndMain, nullptr, GetModuleHandleW(nullptr), nullptr);
-    if (hDlg)
+    if (!hDlg)
+        return;
+    HFONT hFont = reinterpret_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
+    CreateWindowExW(0, L"STATIC", lang.dialogOpacityLabel.c_str(), WS_CHILD | WS_VISIBLE, 10, 18, 110, 20, hDlg, nullptr, nullptr, nullptr);
+    HWND hEdit = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", buf, WS_CHILD | WS_VISIBLE | ES_NUMBER, 125, 15, 60, 22, hDlg, reinterpret_cast<HMENU>(1001), nullptr, nullptr);
+    CreateWindowExW(0, L"BUTTON", lang.dialogOK.c_str(), WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, 50, 50, 70, 26, hDlg, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
+    CreateWindowExW(0, L"BUTTON", lang.dialogCancel.c_str(), WS_CHILD | WS_VISIBLE, 130, 50, 70, 26, hDlg, reinterpret_cast<HMENU>(IDCANCEL), nullptr, nullptr);
+    for (HWND h = GetWindow(hDlg, GW_CHILD); h; h = GetWindow(h, GW_HWNDNEXT))
+        SendMessageW(h, WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
+    SetWindowLongPtrW(hDlg, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(TransparencyDlgProc));
+    ApplyDialogTheme(hDlg);
+    SetFocus(hEdit);
+    MSG msg;
+    while (IsWindow(hDlg))
     {
-        HFONT hFont = reinterpret_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
-        CreateWindowExW(0, L"STATIC", lang.dialogOpacityLabel.c_str(), WS_CHILD | WS_VISIBLE, 10, 18, 110, 20, hDlg, nullptr, nullptr, nullptr);
-        HWND hEdit = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", buf, WS_CHILD | WS_VISIBLE | ES_NUMBER, 125, 15, 60, 22, hDlg, reinterpret_cast<HMENU>(1001), nullptr, nullptr);
-        HWND hOk = CreateWindowExW(0, L"BUTTON", lang.dialogOK.c_str(), WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, 50, 50, 70, 26, hDlg, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
-        HWND hCancel = CreateWindowExW(0, L"BUTTON", lang.dialogCancel.c_str(), WS_CHILD | WS_VISIBLE, 130, 50, 70, 26, hDlg, reinterpret_cast<HMENU>(IDCANCEL), nullptr, nullptr);
-        for (HWND h = GetWindow(hDlg, GW_CHILD); h; h = GetWindow(h, GW_HWNDNEXT))
-            SendMessageW(h, WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
-        MSG msg;
-        while (GetMessageW(&msg, nullptr, 0, 0))
+        BOOL gm = GetMessageW(&msg, nullptr, 0, 0);
+        if (gm <= 0)
+            break;
+        if (msg.hwnd == hDlg && msg.message == WM_COMMAND)
         {
-            if (msg.message == WM_KEYDOWN && msg.wParam == VK_ESCAPE)
-                break;
-            if (msg.hwnd == hOk && msg.message == WM_LBUTTONUP)
+            if (LOWORD(msg.wParam) == IDOK)
             {
                 GetWindowTextW(hEdit, buf, 32);
                 int val = _wtoi(buf);
@@ -381,18 +464,29 @@ void ViewTransparency()
                 g_state.windowOpacity = static_cast<BYTE>(val * 255 / 100);
                 SetWindowLongW(g_hwndMain, GWL_EXSTYLE, GetWindowLongW(g_hwndMain, GWL_EXSTYLE) | WS_EX_LAYERED);
                 SetLayeredWindowAttributes(g_hwndMain, 0, g_state.windowOpacity, LWA_ALPHA);
+                SaveFontSettings();
+                DestroyWindow(hDlg);
                 break;
             }
-            if (msg.hwnd == hCancel && msg.message == WM_LBUTTONUP)
-                break;
-            if (!IsDialogMessageW(hDlg, &msg))
+            if (LOWORD(msg.wParam) == IDCANCEL)
             {
-                TranslateMessage(&msg);
-                DispatchMessageW(&msg);
+                DestroyWindow(hDlg);
+                break;
             }
         }
-        DestroyWindow(hDlg);
+        if (msg.hwnd == hDlg && msg.message == WM_CLOSE)
+        {
+            DestroyWindow(hDlg);
+            break;
+        }
+        if (!IsDialogMessageW(hDlg, &msg))
+        {
+            TranslateMessage(&msg);
+            DispatchMessageW(&msg);
+        }
     }
+    if (IsWindow(hDlg))
+        DestroyWindow(hDlg);
 }
 
 void HelpAbout()

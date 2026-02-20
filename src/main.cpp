@@ -1,13 +1,5 @@
 /*
-   ▄████████  ▄██████▄     ▄████████  ▄█        ▄██████▄   ▄██████▄     ▄███████▄
-  ███    ███ ███    ███   ███    ███ ███       ███    ███ ███    ███   ███    ███
-  ███    █▀  ███    ███   ███    ███ ███       ███    ███ ███    ███   ███    ███
- ▄███▄▄▄     ███    ███  ▄███▄▄▄▄██▀ ███       ███    ███ ███    ███   ███    ███
-▀▀███▀▀▀     ███    ███ ▀▀███▀▀▀▀▀   ███       ███    ███ ███    ███ ▀█████████▀
-  ███        ███    ███ ▀███████████ ███       ███    ███ ███    ███   ███
-  ███        ███    ███   ███    ███ ███▌    ▄ ███    ███ ███    ███   ███
-  ███         ▀██████▀    ███    ███ █████▄▄██  ▀██████▀   ▀██████▀   ▄████▀
-                          ███    ███ ▀
+  Saka Studio & Engineering
 
   Main entry point and window procedure for Legacy Notepad text editor application.
   Coordinates all modules and handles Windows message loop and command dispatching.
@@ -23,6 +15,7 @@
 #include <dwmapi.h>
 #include <uxtheme.h>
 #include <gdiplus.h>
+#include <algorithm>
 
 #include "resource.h"
 #include "core/types.h"
@@ -37,6 +30,16 @@
 #include "modules/settings.h"
 #include "modules/menu.h"
 #include "lang/lang.h"
+
+static std::wstring MenuLabelForContext(const std::wstring &menuText)
+{
+    std::wstring cleaned = menuText;
+    const size_t tabPos = cleaned.find(L'\t');
+    if (tabPos != std::wstring::npos)
+        cleaned.erase(tabPos);
+    cleaned.erase(std::remove(cleaned.begin(), cleaned.end(), L'&'), cleaned.end());
+    return cleaned;
+}
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -68,6 +71,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 return -1;
             }
         }
+        g_editorClassName = richEditClass;
         g_hwndEditor = CreateWindowExW(0, richEditClass, nullptr,
                                        WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN | ES_NOHIDESEL,
                                        0, 0, 100, 100, hwnd, reinterpret_cast<HMENU>(IDC_EDITOR), GetModuleHandleW(nullptr), nullptr);
@@ -80,11 +84,45 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         ApplyFont();
         SetupStatusBarParts();
         UpdateMenuStrings();
+        UpdateRecentFilesMenu();
         UpdateLanguageMenu();
-        CheckMenuItem(GetMenu(g_hwndMain), IDM_VIEW_ALWAYSONTOP, g_state.alwaysOnTop ? MF_CHECKED : MF_UNCHECKED);
+        HMENU hMainMenu = GetMenu(g_hwndMain);
+        if (hMainMenu)
+        {
+            CheckMenuItem(hMainMenu, IDM_FORMAT_WORDWRAP, g_state.wordWrap ? MF_CHECKED : MF_UNCHECKED);
+            CheckMenuItem(hMainMenu, IDM_VIEW_STATUSBAR, g_state.showStatusBar ? MF_CHECKED : MF_UNCHECKED);
+            CheckMenuItem(hMainMenu, IDM_VIEW_ALWAYSONTOP, g_state.alwaysOnTop ? MF_CHECKED : MF_UNCHECKED);
+        }
+        if (g_state.wordWrap)
+            ApplyWordWrap();
         if (g_state.alwaysOnTop)
             SetWindowPos(g_hwndMain, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+        if (g_state.windowOpacity < 255)
+        {
+            SetWindowLongW(g_hwndMain, GWL_EXSTYLE, GetWindowLongW(g_hwndMain, GWL_EXSTYLE) | WS_EX_LAYERED);
+            SetLayeredWindowAttributes(g_hwndMain, 0, g_state.windowOpacity, LWA_ALPHA);
+        }
+        if (!g_state.customIconPath.empty())
+        {
+            HICON hLoadedIcon = static_cast<HICON>(LoadImageW(nullptr, g_state.customIconPath.c_str(), IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE));
+            if (hLoadedIcon)
+            {
+                g_hCustomIcon = hLoadedIcon;
+                SendMessageW(g_hwndMain, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(hLoadedIcon));
+                SendMessageW(g_hwndMain, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(hLoadedIcon));
+            }
+            else
+            {
+                g_state.customIconPath.clear();
+            }
+        }
+        if (g_state.background.enabled && !g_state.background.imagePath.empty())
+        {
+            LoadBackgroundImage(g_state.background.imagePath);
+            SetBackgroundPosition(g_state.background.position);
+        }
         UpdateTitle();
+        ResizeControls();
         UpdateStatus();
         ApplyTheme();
         SetFocus(g_hwndEditor);
@@ -256,6 +294,64 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
         break;
     }
+    case WM_CONTEXTMENU:
+    {
+        if (reinterpret_cast<HWND>(wParam) != g_hwndEditor)
+            break;
+
+        POINT pt = {GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
+        if (pt.x == -1 && pt.y == -1)
+        {
+            DWORD start = 0;
+            SendMessageW(g_hwndEditor, EM_GETSEL, reinterpret_cast<WPARAM>(&start), 0);
+            POINTL charPos = {};
+            if (SendMessageW(g_hwndEditor, EM_POSFROMCHAR, reinterpret_cast<WPARAM>(&charPos), start) != -1)
+            {
+                pt.x = static_cast<LONG>(charPos.x);
+                pt.y = static_cast<LONG>(charPos.y);
+                ClientToScreen(g_hwndEditor, &pt);
+            }
+            else
+            {
+                GetCursorPos(&pt);
+            }
+        }
+
+        HMENU hPopup = CreatePopupMenu();
+        if (!hPopup)
+            return 0;
+
+        const auto &lang = GetLangStrings();
+        AppendMenuW(hPopup, MF_STRING, IDM_EDIT_UNDO, MenuLabelForContext(lang.menuUndo).c_str());
+        AppendMenuW(hPopup, MF_STRING, IDM_EDIT_REDO, MenuLabelForContext(lang.menuRedo).c_str());
+        AppendMenuW(hPopup, MF_SEPARATOR, 0, nullptr);
+        AppendMenuW(hPopup, MF_STRING, IDM_EDIT_CUT, MenuLabelForContext(lang.menuCut).c_str());
+        AppendMenuW(hPopup, MF_STRING, IDM_EDIT_COPY, MenuLabelForContext(lang.menuCopy).c_str());
+        AppendMenuW(hPopup, MF_STRING, IDM_EDIT_PASTE, MenuLabelForContext(lang.menuPaste).c_str());
+        AppendMenuW(hPopup, MF_STRING, IDM_EDIT_DELETE, MenuLabelForContext(lang.menuDelete).c_str());
+        AppendMenuW(hPopup, MF_SEPARATOR, 0, nullptr);
+        AppendMenuW(hPopup, MF_STRING, IDM_EDIT_SELECTALL, MenuLabelForContext(lang.menuSelectAll).c_str());
+
+        DWORD selStart = 0, selEnd = 0;
+        SendMessageW(g_hwndEditor, EM_GETSEL, reinterpret_cast<WPARAM>(&selStart), reinterpret_cast<LPARAM>(&selEnd));
+        const bool hasSelection = selStart != selEnd;
+        const bool canUndo = SendMessageW(g_hwndEditor, EM_CANUNDO, 0, 0) != 0;
+        const bool canRedo = SendMessageW(g_hwndEditor, EM_CANREDO, 0, 0) != 0;
+        const bool canPaste = IsClipboardFormatAvailable(CF_UNICODETEXT) || IsClipboardFormatAvailable(CF_TEXT);
+
+        EnableMenuItem(hPopup, IDM_EDIT_UNDO, MF_BYCOMMAND | (canUndo ? MF_ENABLED : MF_GRAYED));
+        EnableMenuItem(hPopup, IDM_EDIT_REDO, MF_BYCOMMAND | (canRedo ? MF_ENABLED : MF_GRAYED));
+        EnableMenuItem(hPopup, IDM_EDIT_CUT, MF_BYCOMMAND | (hasSelection ? MF_ENABLED : MF_GRAYED));
+        EnableMenuItem(hPopup, IDM_EDIT_COPY, MF_BYCOMMAND | (hasSelection ? MF_ENABLED : MF_GRAYED));
+        EnableMenuItem(hPopup, IDM_EDIT_PASTE, MF_BYCOMMAND | (canPaste ? MF_ENABLED : MF_GRAYED));
+        EnableMenuItem(hPopup, IDM_EDIT_DELETE, MF_BYCOMMAND | (hasSelection ? MF_ENABLED : MF_GRAYED));
+
+        const UINT cmd = TrackPopupMenu(hPopup, TPM_LEFTALIGN | TPM_TOPALIGN | TPM_RIGHTBUTTON | TPM_RETURNCMD, pt.x, pt.y, 0, hwnd, nullptr);
+        DestroyMenu(hPopup);
+        if (cmd != 0)
+            SendMessageW(hwnd, WM_COMMAND, MAKEWPARAM(cmd, 0), 0);
+        return 0;
+    }
     case WM_COMMAND:
     {
         WORD cmd = LOWORD(wParam);
@@ -426,6 +522,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             }
             SetLanguage(LangID::EN);
             UpdateMenuStrings();
+            UpdateRecentFilesMenu();
             UpdateLanguageMenu();
             UpdateTitle();
             UpdateStatus();
@@ -438,6 +535,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             }
             SetLanguage(LangID::JA);
             UpdateMenuStrings();
+            UpdateRecentFilesMenu();
             UpdateLanguageMenu();
             UpdateTitle();
             UpdateStatus();
@@ -447,6 +545,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             break;
         case IDM_VIEW_ICON_RESET:
             ViewResetIcon();
+            break;
+        case IDM_HELP_CHECKUPDATES:
+            HelpCheckUpdates();
             break;
         case IDM_HELP_ABOUT:
             HelpAbout();
@@ -499,6 +600,24 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             g_state.closing = false;
         return 0;
     case WM_DESTROY:
+    {
+        WINDOWPLACEMENT placement = {};
+        placement.length = sizeof(placement);
+        if (GetWindowPlacement(g_hwndMain, &placement))
+        {
+            RECT rc = placement.rcNormalPosition;
+            const int width = rc.right - rc.left;
+            const int height = rc.bottom - rc.top;
+            if (width > 0 && height > 0)
+            {
+                g_state.windowX = rc.left;
+                g_state.windowY = rc.top;
+                g_state.windowWidth = width;
+                g_state.windowHeight = height;
+            }
+            g_state.windowMaximized = (placement.showCmd == SW_SHOWMAXIMIZED);
+        }
+        SaveFontSettings();
         if (g_state.hFont)
         {
             DeleteObject(g_state.hFont);
@@ -519,8 +638,29 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             DestroyIcon(g_hCustomIcon);
             g_hCustomIcon = nullptr;
         }
+        if (g_hbrStatusDark)
+        {
+            DeleteObject(g_hbrStatusDark);
+            g_hbrStatusDark = nullptr;
+        }
+        if (g_hbrMenuDark)
+        {
+            DeleteObject(g_hbrMenuDark);
+            g_hbrMenuDark = nullptr;
+        }
+        if (g_hbrDialogDark)
+        {
+            DeleteObject(g_hbrDialogDark);
+            g_hbrDialogDark = nullptr;
+        }
+        if (g_hbrDialogEditDark)
+        {
+            DeleteObject(g_hbrDialogEditDark);
+            g_hbrDialogEditDark = nullptr;
+        }
         PostQuitMessage(0);
         return 0;
+    }
     case WM_MOUSEWHEEL:
         if (GetKeyState(VK_CONTROL) & 0x8000)
         {
@@ -578,10 +718,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR lpCmdLine, int nCmdSh
     const auto &lang = GetLangStrings();
     std::wstring initialTitle = lang.untitled + L" - " + lang.appName;
     g_hwndMain = CreateWindowExW(0, L"NotepadClass", initialTitle.c_str(),
-                                 WS_OVERLAPPEDWINDOW | WS_MAXIMIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT, 640, 480,
+                                 WS_OVERLAPPEDWINDOW | WS_MAXIMIZEBOX, g_state.windowX, g_state.windowY, g_state.windowWidth, g_state.windowHeight,
                                  nullptr, nullptr, hInstance, nullptr);
     g_hAccel = LoadAcceleratorsW(hInstance, MAKEINTRESOURCEW(IDR_ACCEL));
-    ShowWindow(g_hwndMain, nCmdShow);
+    int showCmd = nCmdShow;
+    if (g_state.windowMaximized && (nCmdShow == SW_SHOW || nCmdShow == SW_SHOWNORMAL || nCmdShow == SW_SHOWDEFAULT))
+        showCmd = SW_SHOWMAXIMIZED;
+    ShowWindow(g_hwndMain, showCmd);
     UpdateWindow(g_hwndMain);
 
     if (lpCmdLine && lpCmdLine[0])
