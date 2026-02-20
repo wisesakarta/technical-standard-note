@@ -56,6 +56,7 @@ target_link_libraries(legacy-notepad PRIVATE
     kernel32
     dwmapi
     uxtheme
+    winhttp
 )
 
 if(NOT MSVC)

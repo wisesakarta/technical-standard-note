@@ -12,6 +12,7 @@
 #include <deque>
 
 #define APP_NAME L"Notepad"
+#define APP_VERSION L"1.2.0"
 #define ZOOM_MIN 25
 #define ZOOM_MAX 500
 #define ZOOM_DEFAULT 100

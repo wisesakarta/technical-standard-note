@@ -17,6 +17,10 @@
 #include <richedit.h>
 #include <shlwapi.h>
 #include <shellapi.h>
+#include <winhttp.h>
+#include <algorithm>
+#include <cwctype>
+#include <string>
 #include <vector>
 
 namespace
@@ -98,6 +102,234 @@ bool OpenSystemIconPicker(HWND owner, LPWSTR iconPath, UINT cchIconPath, int *ic
     BOOL ok = pickIconDlg(owner, iconPath, cchIconPath, iconIndex);
     FreeLibrary(hShell32);
     return ok != FALSE;
+}
+
+std::wstring Utf8ToWide(const std::string &text)
+{
+    if (text.empty())
+        return {};
+
+    const int length = MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), nullptr, 0);
+    if (length <= 0)
+        return {};
+
+    std::wstring result(length, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), result.data(), length);
+    return result;
+}
+
+bool ExtractJsonStringField(const std::string &json, const char *field, std::string &value)
+{
+    const std::string key = "\"" + std::string(field) + "\"";
+    size_t pos = json.find(key);
+    if (pos == std::string::npos)
+        return false;
+
+    pos = json.find(':', pos + key.size());
+    if (pos == std::string::npos)
+        return false;
+
+    pos = json.find('"', pos + 1);
+    if (pos == std::string::npos)
+        return false;
+    ++pos;
+
+    std::string out;
+    while (pos < json.size())
+    {
+        char ch = json[pos++];
+        if (ch == '"')
+        {
+            value = out;
+            return true;
+        }
+        if (ch == '\\')
+        {
+            if (pos >= json.size())
+                break;
+            char esc = json[pos++];
+            switch (esc)
+            {
+            case '"':
+                out.push_back('"');
+                break;
+            case '\\':
+                out.push_back('\\');
+                break;
+            case '/':
+                out.push_back('/');
+                break;
+            case 'b':
+                out.push_back('\b');
+                break;
+            case 'f':
+                out.push_back('\f');
+                break;
+            case 'n':
+                out.push_back('\n');
+                break;
+            case 'r':
+                out.push_back('\r');
+                break;
+            case 't':
+                out.push_back('\t');
+                break;
+            case 'u':
+                if (pos + 4 <= json.size())
+                    pos += 4;
+                out.push_back('?');
+                break;
+            default:
+                out.push_back(esc);
+                break;
+            }
+            continue;
+        }
+        out.push_back(ch);
+    }
+    return false;
+}
+
+bool FetchLatestReleaseMetadata(std::string &tagName, std::string &releaseUrl)
+{
+    HINTERNET hSession = WinHttpOpen((std::wstring(L"LegacyNotepad/") + APP_VERSION).c_str(),
+                                     WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
+                                     WINHTTP_NO_PROXY_NAME,
+                                     WINHTTP_NO_PROXY_BYPASS,
+                                     0);
+    if (!hSession)
+        return false;
+
+    HINTERNET hConnect = WinHttpConnect(hSession, L"api.github.com", INTERNET_DEFAULT_HTTPS_PORT, 0);
+    if (!hConnect)
+    {
+        WinHttpCloseHandle(hSession);
+        return false;
+    }
+
+    HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"GET", L"/repos/ForLoopCodes/legacy-notepad/releases/latest",
+                                            nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES,
+                                            WINHTTP_FLAG_SECURE);
+    if (!hRequest)
+    {
+        WinHttpCloseHandle(hConnect);
+        WinHttpCloseHandle(hSession);
+        return false;
+    }
+
+    const wchar_t *headers = L"Accept: application/vnd.github+json\r\nX-GitHub-Api-Version: 2022-11-28\r\n";
+    const BOOL sent = WinHttpSendRequest(hRequest, headers, static_cast<DWORD>(-1L),
+                                         WINHTTP_NO_REQUEST_DATA, 0, 0, 0);
+    const BOOL received = sent ? WinHttpReceiveResponse(hRequest, nullptr) : FALSE;
+    if (!received)
+    {
+        WinHttpCloseHandle(hRequest);
+        WinHttpCloseHandle(hConnect);
+        WinHttpCloseHandle(hSession);
+        return false;
+    }
+
+    DWORD statusCode = 0;
+    DWORD statusSize = sizeof(statusCode);
+    if (!WinHttpQueryHeaders(hRequest, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+                             WINHTTP_HEADER_NAME_BY_INDEX, &statusCode, &statusSize, WINHTTP_NO_HEADER_INDEX) ||
+        statusCode != 200)
+    {
+        WinHttpCloseHandle(hRequest);
+        WinHttpCloseHandle(hConnect);
+        WinHttpCloseHandle(hSession);
+        return false;
+    }
+
+    std::string json;
+    for (;;)
+    {
+        DWORD available = 0;
+        if (!WinHttpQueryDataAvailable(hRequest, &available))
+            break;
+        if (available == 0)
+            break;
+
+        std::string chunk(available, '\0');
+        DWORD bytesRead = 0;
+        if (!WinHttpReadData(hRequest, chunk.data(), available, &bytesRead))
+            break;
+
+        chunk.resize(bytesRead);
+        json += chunk;
+    }
+
+    WinHttpCloseHandle(hRequest);
+    WinHttpCloseHandle(hConnect);
+    WinHttpCloseHandle(hSession);
+
+    return ExtractJsonStringField(json, "tag_name", tagName) &&
+           ExtractJsonStringField(json, "html_url", releaseUrl);
+}
+
+std::wstring NormalizeVersionTag(const std::wstring &tag)
+{
+    size_t start = 0;
+    while (start < tag.size() && !iswdigit(tag[start]))
+        ++start;
+    if (start >= tag.size())
+        return {};
+
+    size_t end = start;
+    while (end < tag.size() && (iswdigit(tag[end]) || tag[end] == L'.'))
+        ++end;
+    if (end <= start)
+        return {};
+    return tag.substr(start, end - start);
+}
+
+std::vector<int> ParseVersionNumbers(const std::wstring &version)
+{
+    std::vector<int> numbers;
+    int current = 0;
+    bool hasDigit = false;
+
+    for (wchar_t ch : version)
+    {
+        if (iswdigit(ch))
+        {
+            hasDigit = true;
+            current = (current * 10) + (ch - L'0');
+        }
+        else if (ch == L'.')
+        {
+            numbers.push_back(hasDigit ? current : 0);
+            current = 0;
+            hasDigit = false;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    if (hasDigit)
+        numbers.push_back(current);
+
+    return numbers;
+}
+
+int CompareVersions(const std::wstring &left, const std::wstring &right)
+{
+    std::vector<int> lv = ParseVersionNumbers(left);
+    std::vector<int> rv = ParseVersionNumbers(right);
+    const size_t count = std::max(lv.size(), rv.size());
+    lv.resize(count, 0);
+    rv.resize(count, 0);
+
+    for (size_t i = 0; i < count; ++i)
+    {
+        if (lv[i] < rv[i])
+            return -1;
+        if (lv[i] > rv[i])
+            return 1;
+    }
+    return 0;
 }
 }
 
@@ -414,7 +646,54 @@ bool ApplyCustomIcon(const std::wstring &iconPath, int iconIndex, bool showError
 
 void HelpCheckUpdates()
 {
-    ShellExecuteW(nullptr, L"open", L"https://github.com/ForLoopCodes/legacy-notepad/releases/latest", nullptr, nullptr, SW_SHOWNORMAL);
+    const auto &lang = GetLangStrings();
+    const std::wstring fallbackUrl = L"https://github.com/ForLoopCodes/legacy-notepad/releases/latest";
+
+    std::string tagNameUtf8;
+    std::string releaseUrlUtf8;
+    if (!FetchLatestReleaseMetadata(tagNameUtf8, releaseUrlUtf8))
+    {
+        int choice = MessageBoxW(g_hwndMain,
+                                 L"Unable to check updates right now.\nOpen the releases page instead?",
+                                 lang.appName.c_str(),
+                                 MB_YESNO | MB_ICONINFORMATION);
+        if (choice == IDYES)
+            ShellExecuteW(nullptr, L"open", fallbackUrl.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+        return;
+    }
+
+    const std::wstring latestVersion = NormalizeVersionTag(Utf8ToWide(tagNameUtf8));
+    const std::wstring currentVersion = APP_VERSION;
+    std::wstring releaseUrl = Utf8ToWide(releaseUrlUtf8);
+    if (releaseUrl.empty())
+        releaseUrl = fallbackUrl;
+
+    if (latestVersion.empty())
+    {
+        int choice = MessageBoxW(g_hwndMain,
+                                 L"Found a release, but could not parse its version.\nOpen the releases page?",
+                                 lang.appName.c_str(),
+                                 MB_YESNO | MB_ICONINFORMATION);
+        if (choice == IDYES)
+            ShellExecuteW(nullptr, L"open", releaseUrl.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+        return;
+    }
+
+    const int compare = CompareVersions(currentVersion, latestVersion);
+    if (compare < 0)
+    {
+        std::wstring message = L"Update available.\n\nCurrent version: " + currentVersion +
+                               L"\nLatest version: " + latestVersion +
+                               L"\n\nOpen download page?";
+        int choice = MessageBoxW(g_hwndMain, message.c_str(), lang.appName.c_str(), MB_YESNO | MB_ICONINFORMATION);
+        if (choice == IDYES)
+            ShellExecuteW(nullptr, L"open", releaseUrl.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+        return;
+    }
+
+    std::wstring message = L"You are up to date.\n\nCurrent version: " + currentVersion +
+                           L"\nLatest version: " + latestVersion;
+    MessageBoxW(g_hwndMain, message.c_str(), lang.appName.c_str(), MB_OK | MB_ICONINFORMATION);
 }
 
 void ViewAlwaysOnTop()
