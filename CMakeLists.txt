@@ -98,5 +98,12 @@ set(CPACK_NSIS_MODIFY_PATH ON)
 set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
 set(CPACK_NSIS_MUI_ICON "${CMAKE_SOURCE_DIR}/src/icon.ico")
 set(CPACK_NSIS_MUI_UNIICON "${CMAKE_SOURCE_DIR}/src/icon.ico")
+set(CPACK_NSIS_EXECUTABLES_DIRECTORY ".")
+set(CPACK_PACKAGE_EXECUTABLES "saka-note.exe" "Saka Note")
+set(CPACK_NSIS_INSTALLED_ICON_NAME "saka-note.exe")
+set(CPACK_NSIS_MUI_FINISHPAGE_RUN "saka-note.exe")
+set(CPACK_NSIS_MENU_LINKS
+    "saka-note.exe" "Saka Note"
+)
 
 include(CPack)
