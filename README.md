@@ -1,116 +1,150 @@
-# Legacy Notepad
+# Saka Note
 
-A lightweight, 25x fast, Windows notepad alternative built with C++17 and Win32 API which I made because microsoft wont stop adding AI bloatware to notepad.exe.
+Saka Note is a lightweight Windows text editor built with C++17 and Win32 API.  
+Saka Note adalah editor teks Windows ringan yang dibangun dengan C++17 dan Win32 API.
 
-<img width="752" height="242" alt="image" src="https://github.com/user-attachments/assets/bca18796-b088-4488-a445-649a549ddace" />
-<img width="738" height="243" alt="image" src="https://github.com/user-attachments/assets/e9ba9361-d1ea-41ee-a18d-f38fb9bdb546" />
+Project goal: keep plain-text editing fast, stable, and clean without feature bloat.  
+Tujuan proyek: menjaga pengeditan plain text tetap cepat, stabil, dan bersih tanpa feature bloat.
 
-## Screenshot:
+## Language Policy / Kebijakan Bahasa
 
-<img width="986" height="735" alt="image" src="https://github.com/user-attachments/assets/939cbb8b-a770-449c-9d9d-e93e076787d3" />
+- Primary documentation language: English.
+- Bahasa dokumentasi utama: English.
+- Companion language: Indonesian for collaboration clarity.
+- Bahasa pendamping: Indonesia untuk kejelasan kolaborasi.
+- Standard reference: `docs/language-standard.md`.
+- Referensi standar: `docs/language-standard.md`.
 
-## Features
+## Open Source Attribution / Atribusi Open Source
 
-- **Multi-language support**: English and Japanese translations with runtime switching.
-- **Multi-encoding text**: UTF-8, UTF-8 BOM, UTF-16 LE/BE, ANSI with line-ending selection.
-- **Rich editing**: word wrap toggle, font selection, zoom, time/date stamp, find/replace/goto.
-- **Backgrounds**: optional image with tile/stretch/fit/fill/anchor modes and opacity control. (known issues)
-- **Always on top**: window pinning support.
-- **Printing**: print and page setup dialogs.
-- **Customizable icon**: change the application icon to any .ico file, including classic Notepad icons.
+This project is based on the upstream repository below.  
+Proyek ini berbasis pada repositori upstream berikut.
 
-## Requisites
+- Upstream repository: https://github.com/ForLoopCodes/legacy-notepad
 
-Building Legacy Notepad requires:
+Attribution details and modification log:  
+Detail atribusi dan log modifikasi:
+- `docs/upstream-and-modifications.md`
 
-- **Operating System**: Windows 7 SP1 or newer (Windows 10/11 recommended for full UI feature support).
-- **Build System**: [CMake](https://cmake.org/download/) 3.16 or higher.
-- **Compiler**: A C++17 compatible toolchain:
-  - **MinGW-w64**: Tested with GCC 13.2.0 (standard for lightweight builds).
-  - **MSVC**: Visual Studio 2022 or higher.
-- **SDKs**: Windows SDK (included with Visual Studio or available via MSYS2 for MinGW).
-- **Dependencies**: The app uses standard Windows components: `GDI+`, `RichEdit 4.1` (`Msftedit.dll`), `Common Controls`, and `DWM`.
+## Core Features / Fitur Inti
 
-## Build & Installation
+- Multi-tab editing with startup behavior options. / Pengeditan multi-tab dengan opsi perilaku startup.
+- Encoding support: UTF-8, UTF-8 BOM, UTF-16 LE/BE, ANSI. / Dukungan encoding: UTF-8, UTF-8 BOM, UTF-16 LE/BE, ANSI.
+- Line ending support: CRLF, LF, CR. / Dukungan line ending: CRLF, LF, CR.
+- Find, replace, go-to-line, zoom, word-wrap, font settings. / Find, replace, go-to-line, zoom, word-wrap, dan pengaturan font.
+- Optional background image and opacity controls. / Opsi gambar latar belakang dan kontrol opacity.
+- Built-in performance benchmark (`--benchmark-ci`). / Benchmark performa bawaan (`--benchmark-ci`).
+- Large file mode (automatic behavior for big files). / Mode file besar (perilaku otomatis untuk file besar).
 
-### Using MinGW (Recommended for GCC)
+## Requirements / Kebutuhan
 
-Ensure your MinGW `bin` folder is in your system `PATH`.
+- Windows 7 SP1+ (Windows 10/11 recommended). / Windows 7 SP1+ (Windows 10/11 disarankan).
+- CMake 3.16+.
+- C++17 toolchain:
+  - MinGW-w64, or / atau
+  - MSVC (Visual Studio 2022+).
 
-```powershell
-# 1. Clone the repository
-git clone https://github.com/ForLoopCodes/legacy-notepad.git
-cd legacy-notepad
+## Build
 
-# 2. Create and enter build directory
-mkdir build
-cd build
-
-# 3. Configure and build
-cmake -G "MinGW Makefiles" ..
-mingw32-make -j$(nproc)
-
-# 4. Run the application
-.\legacy-notepad.exe
-```
-
-### Using Visual Studio (MSVC)
-
-1. Open the folder in Visual Studio 2022.
-2. Visual Studio will automatically detect `CMakeLists.txt` and configure the project.
-3. Select `legacy-notepad.exe` in the startup item dropdown.
-4. Press `F5` to build and run.
-
-Alternatively, via command line:
+### MinGW (Debug)
 
 ```powershell
-cmake -B build -S .
-cmake --build build --config Release
+cmake -S . -B build/mingw-debug -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Debug
+cmake --build build/mingw-debug
+.\build\mingw-debug\saka-note.exe
 ```
 
-## Architecture
+### MSVC (Debug)
 
-- **Entry**: `src/main.cpp` - window class, message loop, wiring modules.
-- **Core**: `src/core` - shared types and globals.
-- **Modules** (`src/modules`): `theme` (dark mode), `editor` (RichEdit handling), `file` (I/O & encodings), `ui` (title/status/layout), `background` (GDI+), `dialog` (find/replace/font/transparency), `commands` (menu actions).
-- **Resources**: `src/notepad.rc`, `src/resource.h`, icons/menus/accelerators.
-
-## Repository tree
-
+```powershell
+cmake -S . -B build/msvc-debug -G "Visual Studio 17 2022" -A x64
+cmake --build build/msvc-debug --config Debug
+.\build\msvc-debug\Debug\saka-note.exe
 ```
+
+## Distribution / Distribusi
+
+Recommended distribution model for public users:  
+Model distribusi yang disarankan untuk pengguna publik:
+
+1. Do not commit compiled `.exe` directly to `main`.
+2. Jangan commit file `.exe` hasil build langsung ke branch `main`.
+3. Publish compiled binaries via GitHub Releases (x64/ARM64).
+4. Publikasikan binary hasil build melalui GitHub Releases (x64/ARM64).
+5. Keep source repo clean (code + docs), and let CI publish artifacts on tags.
+6. Jaga repo source tetap bersih (code + docs), dan biarkan CI mempublikasikan artifact saat tag dirilis.
+
+Current CI workflow: `.github/workflows/build.yml`.  
+Workflow CI saat ini: `.github/workflows/build.yml`.
+
+## Weekly Test Build / Build Uji Mingguan
+
+After your repo is connected to GitHub:  
+Setelah repo kamu terhubung ke GitHub:
+
+1. Create and push a tag:
+   - `git tag v1.3.0`
+   - `git push origin v1.3.0`
+2. Wait for `Build and Release` GitHub Actions workflow to finish.
+3. Buka halaman `Releases` dan unduh salah satu file:
+   - `saka-note-x64-portable.zip` (recommended for most users)
+   - `saka-note-ARM64-portable.zip` (ARM devices)
+   - `saka-note-*.exe` (installer, if generated)
+4. For portable zip:
+   - extract zip,
+   - run `saka-note.exe`.
+
+For a one-week trial, keep a simple checklist:  
+Untuk uji coba satu minggu, simpan checklist sederhana:
+- startup speed / kecepatan startup
+- memory usage / penggunaan memori
+- save/open stability / stabilitas save/open
+- tab/session behavior / perilaku tab/sesi
+- crash/freeze reproduction steps / langkah reproduksi crash/freeze
+
+## Benchmark
+
+Internal benchmark / Benchmark internal:
+
+```powershell
+.\build\mingw-debug\saka-note.exe --benchmark-ci
+```
+
+Report output / Lokasi output laporan:
+- `%LOCALAPPDATA%\SakaNote\benchmarks\benchmark-YYYYMMDD-HHMMSS.txt`
+
+A/B benchmark (Saka Note vs Microsoft Notepad):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\compare-notepad.ps1 -Iterations 3 -SampleSeconds 8 -SampleIntervalMs 500 -WarmupMs 3000 -ForceCloseBeforeEachRun
+```
+
+Generated outputs / Output yang dihasilkan:
+- `research/perf-runs/run-YYYYMMDD-HHMMSS/summary.csv`
+- `research/perf-runs/run-YYYYMMDD-HHMMSS/samples.csv`
+- `research/perf-runs/run-YYYYMMDD-HHMMSS/comparison.md`
+
+Cleanup old benchmark runs / Bersihkan run benchmark lama:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\cleanup-perf-runs.ps1 -KeepLatest 2
+```
+
+## Project Structure / Struktur Proyek
+
+```text
 src/
-  core/           # types, globals
-  modules/        # theme, editor, file, ui, background, dialog, commands
+  core/
+  lang/
+  modules/
   main.cpp
   notepad.rc
-CMakeLists.txt
+tools/
+research/
+docs/
 ```
 
-## File quicklook
+## License / Lisensi
 
-| File/Folder                        | Purpose                                         |
-| ---------------------------------- | ----------------------------------------------- |
-| `src/main.cpp`                     | Win32 entry point, WndProc, module wiring       |
-| `src/core/types.h`                 | Enums, structs, app constants                   |
-| `src/core/globals.*`               | Shared handles/state definitions                |
-| `src/modules/editor.*`             | RichEdit setup, word wrap, zoom                 |
-| `src/modules/file.*`               | Load/save, encoding + line endings, recent list |
-| `src/modules/ui.*`                 | Title/status updates, layout sizing             |
-| `src/modules/theme.*`              | Dark mode title/menu/status, theming            |
-| `src/modules/background.*`         | GDI+ background image/opacity/position          |
-| `src/modules/dialog.*`             | Find/replace/goto, font, transparency dialogs   |
-| `src/modules/commands.*`           | Menu command handlers                           |
-| `src/notepad.rc`, `src/resource.h` | Menus, accelerators, icons                      |
-
-## License
-
-MIT License - see [LICENSE](LICENSE).
-
-## Notes
-
-- Windows-only (Win32 API + GDI+). Use Wine/Proton at your own risk.
-- Background image modes may vary slightly across DPI/scaling settings.
-
-## Queries
-
-[x.com/forloopcodes](https://x.com/forloopcodes)
+MIT License. See `LICENSE`.  
+Lisensi MIT. Lihat `LICENSE`.

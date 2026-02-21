@@ -6,6 +6,10 @@ on:
     tags: ["v*"]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -27,16 +31,50 @@ jobs:
       - name: Build
         run: cmake --build build-${{ matrix.arch }} --config Release
 
+      - name: Run Performance Benchmark Gate (x64)
+        if: matrix.arch == 'x64'
+        shell: pwsh
+        run: |
+          $exe = Resolve-Path "build-${{ matrix.arch }}/Release/saka-note.exe"
+          & $exe --benchmark-ci
+
+      - name: Collect Benchmark Report (x64)
+        if: always() && matrix.arch == 'x64'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "build-${{ matrix.arch }}/benchmark-reports" | Out-Null
+          $srcDir = Join-Path $env:LOCALAPPDATA "SakaNote\\benchmarks"
+          if (Test-Path $srcDir) {
+            $latest = Get-ChildItem $srcDir -Filter "benchmark-*.txt" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+            if ($latest) {
+              Copy-Item $latest.FullName "build-${{ matrix.arch }}/benchmark-reports/" -Force
+            }
+          }
+
       - name: Package (NSIS)
         run: cpack --config build-${{ matrix.arch }}/CPackConfig.cmake -C Release
+
+      - name: Create Portable Zip
+        shell: pwsh
+        run: |
+          $stage = "build-${{ matrix.arch }}/portable-stage"
+          $zip = "build-${{ matrix.arch }}/saka-note-${{ matrix.arch }}-portable.zip"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item "build-${{ matrix.arch }}/Release/saka-note.exe" "$stage/saka-note.exe" -Force
+          Copy-Item "LICENSE" "$stage/LICENSE.txt" -Force
+          Copy-Item "README.md" "$stage/README.md" -Force
+          Compress-Archive -Path "$stage/*" -DestinationPath $zip -Force
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: legacy-notepad-${{ matrix.arch }}
+          name: saka-note-${{ matrix.arch }}
+          if-no-files-found: ignore
           path: |
-            build-${{ matrix.arch }}/Release/legacy-notepad.exe
-            build-${{ matrix.arch }}/legacy-notepad-*.exe
+            build-${{ matrix.arch }}/Release/saka-note.exe
+            build-${{ matrix.arch }}/saka-note-${{ matrix.arch }}-portable.zip
+            build-${{ matrix.arch }}/saka-note-*.exe
+            build-${{ matrix.arch }}/benchmark-reports/benchmark-*.txt
 
   release:
     needs: build
@@ -48,13 +86,18 @@ jobs:
         with:
           path: artifacts
 
+      - name: Generate SHA256 Checksums
+        run: |
+          find artifacts -type f \( -name "*.exe" -o -name "*.zip" \) -print0 | xargs -0 sha256sum > release-sha256.txt
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            artifacts/legacy-notepad-x64/legacy-notepad.exe
-            artifacts/legacy-notepad-x64/legacy-notepad-*.exe
-            artifacts/legacy-notepad-ARM64/legacy-notepad.exe
-            artifacts/legacy-notepad-ARM64/legacy-notepad-*.exe
+            artifacts/**/saka-note.exe
+            artifacts/**/saka-note-*.exe
+            artifacts/**/saka-note-*-portable.zip
+            artifacts/**/benchmark-*.txt
+            release-sha256.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

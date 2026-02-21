@@ -8,6 +8,9 @@ build/
 CMakeSettings.json
 *.user
 target/
+.agent/
+AGENTS.md
+research/perf-runs/
 .claude
 _codeql_build_dir
 _codeql_detected_source_root
