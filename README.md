@@ -1,5 +1,9 @@
 # Saka Note
 
+<p align="left">
+  <img src="src/Saka%20Note%20Icon.png" alt="Saka Note icon" width="96">
+</p>
+
 Saka Note is a lightweight Windows text editor built with C++17 and Win32 API.  
 Saka Note adalah editor teks Windows ringan yang dibangun dengan C++17 dan Win32 API.
 

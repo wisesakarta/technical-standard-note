@@ -28,21 +28,11 @@ Status: Completed on February 23, 2026.
   - core logic test harness expanded (versioning, encoding, session I/O, tab model/session snapshots).
   - minimal crash diagnostics shipped (opt-in startup logs + opt-in minidump).
 
-- Split `src/main.cpp` into focused units:
-  - tab/session controller
-  - window/layout controller
-  - command routing
-- Break down `src/modules/commands.cpp`:
-  - update-check module
-  - benchmark module
-  - icon/menu actions module
-- Add small test harness for pure logic:
-  - encoding detection/conversion
-  - version compare/update parser
-  - session serialization/deserialization
-- Add crash diagnostics minimal:
-  - startup-safe logging path
-  - optional unhandled-exception dump (opt-in)
+- P1 checklist:
+  - [x] Split `src/main.cpp` into focused units (`tab/session`, `window/layout`, `command routing`).
+  - [x] Break down `src/modules/commands.cpp` into focused modules (`update-check`, `benchmark`, `icon/menu actions`).
+  - [x] Add small test harness for pure logic (`encoding`, `version compare/parser`, `session serialization/deserialization`).
+  - [x] Add minimal crash diagnostics (`startup-safe logging`, optional unhandled-exception dump).
 
 ## P2 - UX and Product Fit (Next)
 
