@@ -54,14 +54,19 @@ jobs:
         shell: pwsh
         run: |
           $exe = Resolve-Path "build-${{ matrix.arch }}/Release/technical-standard-note.exe"
-          & $exe --benchmark-ci
+          $reportDir = Join-Path $env:RUNNER_TEMP "technical-standard-note-benchmarks"
+          & "./tools/benchmark-gate.ps1" `
+            -ExePath $exe `
+            -BenchmarkDir $reportDir `
+            -MaxAttempts 3 `
+            -MinExpectedCases 5
 
       - name: Collect Benchmark Report (x64)
         if: always() && matrix.arch == 'x64'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path "build-${{ matrix.arch }}/benchmark-reports" | Out-Null
-          $srcDir = Join-Path $env:LOCALAPPDATA "TechnicalStandardNote\\benchmarks"
+          $srcDir = Join-Path $env:RUNNER_TEMP "technical-standard-note-benchmarks"
           if (Test-Path $srcDir) {
             $latest = Get-ChildItem $srcDir -Filter "benchmark-*.txt" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
             if ($latest) {

@@ -48,6 +48,7 @@ Detail atribusi dan log modifikasi:
 ## Testing and Research Docs
 
 - Claim test protocol / Protokol uji klaim: `docs/testing/claim-test-protocol.md`.
+- Tab visual parity checklist / Checklist parity visual tab: `docs/testing/tab-visual-parity-checklist.md`.
 - Librarian research notes / Catatan riset: `docs/research/librarian-research-notepad-2026-02.md`.
 
 ## Requirements / Kebutuhan
@@ -173,8 +174,8 @@ After your repo is connected to GitHub:
 Setelah repo kamu terhubung ke GitHub:
 
 1. Create and push a tag:
-   - `git tag v1.3.6`
-   - `git push origin v1.3.6`
+   - `git tag v1.3.7`
+   - `git push origin v1.3.7`
 2. Wait for `Build and Release` GitHub Actions workflow to finish.
 3. Buka halaman `Releases` dan unduh salah satu file:
    - `technical-standard-note-setup-x64.exe` (recommended for most users; creates Start Menu entry)

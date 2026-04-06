@@ -78,6 +78,11 @@ static bool g_sessionPersisting = false;
 static DWORD g_sessionRetryAtTick = 0;
 static HFONT g_hChromeUiFont = nullptr;
 static std::vector<std::wstring> g_loadedPrivateFonts;
+static HDC g_tabBackbufferDc = nullptr;
+static HBITMAP g_tabBackbufferBitmap = nullptr;
+static HBITMAP g_tabBackbufferPrevBitmap = nullptr;
+static int g_tabBackbufferWidth = 0;
+static int g_tabBackbufferHeight = 0;
 
 static std::wstring RuntimeDirectoryPath()
 {
@@ -471,8 +476,6 @@ static UINT TrackPopupMenuLightweight(HMENU hPopup, UINT flags, int x, int y, HW
     return cmd;
 }
 
-static void DrawCloseGlyph(HDC hdc, const RECT &rc, COLORREF color);
-
 static std::wstring DocumentTabLabel(const DocumentTabState &doc)
 {
     const auto &lang = GetLangStrings();
@@ -482,28 +485,35 @@ static std::wstring DocumentTabLabel(const DocumentTabState &doc)
     return label;
 }
 
-static RECT TabCloseRect(const RECT &itemRect)
+static bool TryGetTabInvalidateRect(HWND hwnd, int index, RECT &rc)
 {
-    RECT rc = itemRect;
-    const int closeSize = TabScalePx(12);
-    const int rightPadding = TabScalePx(10);
-    const int topOffset = ((rc.bottom - rc.top) - closeSize) / 2;
-    rc.right -= rightPadding;
-    rc.left = rc.right - closeSize;
-    rc.top += topOffset;
-    rc.bottom = rc.top + closeSize;
-    return rc;
+    if (!hwnd || index < 0)
+        return false;
+
+    RECT itemRect{};
+    if (!TabCtrl_GetItemRect(hwnd, index, &itemRect))
+        return false;
+
+    itemRect.left = std::max<LONG>(0, itemRect.left - TabScalePx(1));
+    itemRect.right += TabScalePx(1);
+    itemRect.top = std::max<LONG>(0, itemRect.top);
+    itemRect.bottom += TabScalePx(1);
+    rc = itemRect;
+    return true;
 }
 
-static RECT TabTextRect(const RECT &itemRect)
+static void InvalidateTabItem(HWND hwnd, int index)
 {
-    RECT rc = itemRect;
-    const RECT closeRc = TabCloseRect(itemRect);
-    rc.left += TabScalePx(12);
-    rc.right = closeRc.left - TabScalePx(10);
-    if (rc.right < rc.left)
-        rc.right = rc.left;
-    return rc;
+    if (index < 0)
+        return;
+
+    RECT rc{};
+    if (TryGetTabInvalidateRect(hwnd, index, rc))
+    {
+        InvalidateRect(hwnd, &rc, FALSE);
+        return;
+    }
+    InvalidateRect(hwnd, nullptr, FALSE);
 }
 
 static void SetDocumentTabLabel(int index)
@@ -1147,24 +1157,6 @@ static void UpdateRuntimeMenuStates()
     DrawMenuBar(g_hwndMain);
 }
 
-static void DrawCloseGlyph(HDC hdc, const RECT &rc, COLORREF color)
-{
-    const int thickness = std::max(1, TabScalePx(1));
-    HPEN hPen = CreatePen(PS_SOLID, thickness, color);
-    if (!hPen)
-        return;
-    HGDIOBJ oldPen = SelectObject(hdc, hPen);
-
-    const int margin = TabScalePx(3);
-    MoveToEx(hdc, rc.left + margin, rc.top + margin, nullptr);
-    LineTo(hdc, rc.right - margin, rc.bottom - margin);
-    MoveToEx(hdc, rc.right - margin, rc.top + margin, nullptr);
-    LineTo(hdc, rc.left + margin, rc.bottom - margin);
-
-    SelectObject(hdc, oldPen);
-    DeleteObject(hPen);
-}
-
 struct CommandBarPalette
 {
     COLORREF background;
@@ -1274,16 +1266,16 @@ static TabPaintPalette GetTabPaintPalette(bool dark)
     if (dark)
     {
         return {
-            RGB(34, 37, 42),    // stripBg
-            RGB(60, 64, 72),    // stripBorder
-            RGB(55, 59, 66),    // activeBg
-            RGB(34, 37, 42),    // inactiveBg
-            RGB(46, 50, 57),    // hoverBg
-            RGB(72, 77, 87),    // borderColor
-            RGB(208, 213, 222), // textColor
-            RGB(245, 247, 252), // activeTextColor
-            RGB(185, 191, 203), // closeColor
-            RGB(72, 77, 87),    // closeHoverBg
+            RGB(33, 36, 41),    // stripBg
+            RGB(66, 71, 80),    // stripBorder
+            RGB(52, 56, 63),    // activeBg
+            RGB(33, 36, 41),    // inactiveBg
+            RGB(43, 47, 54),    // hoverBg
+            RGB(78, 83, 92),    // borderColor
+            RGB(214, 219, 227), // textColor
+            RGB(245, 248, 252), // activeTextColor
+            RGB(190, 196, 208), // closeColor
+            RGB(78, 83, 92),    // closeHoverBg
             RGB(246, 248, 252)  // closeHoverFg
         };
     }
@@ -1348,28 +1340,17 @@ static void DrawTabItemVisual(HDC hdc, int index, const RECT &rawItemRect, const
 
     const bool selected = (index == g_activeDocument);
     const bool hovered = (index == g_hoverTabIndex);
-    const bool showClose = hovered;
-    const bool closeHovered = hovered && g_hoverTabClose;
 
     RECT contentRect = rawItemRect;
     contentRect.left += TabScalePx(1);
     contentRect.right -= TabScalePx(1);
     contentRect.top += TabScalePx(1);
-    contentRect.bottom -= selected ? 0 : TabScalePx(2);
-
-    if (selected && g_hwndTabs)
-    {
-        RECT strip{};
-        GetClientRect(g_hwndTabs, &strip);
-        contentRect.bottom = std::max(contentRect.bottom, strip.bottom);
-    }
+    contentRect.bottom = rawItemRect.bottom;
+    if (contentRect.bottom <= contentRect.top)
+        contentRect.bottom = contentRect.top + 1;
 
     // Keep title baseline consistent across active/inactive tabs.
-    RECT titleBandRect = rawItemRect;
-    titleBandRect.left += TabScalePx(1);
-    titleBandRect.right -= TabScalePx(1);
-    titleBandRect.top += TabScalePx(1);
-    titleBandRect.bottom -= TabScalePx(2);
+    RECT titleBandRect = contentRect;
     if (titleBandRect.bottom <= titleBandRect.top)
         titleBandRect.bottom = titleBandRect.top + 1;
 
@@ -1384,7 +1365,7 @@ static void DrawTabItemVisual(HDC hdc, int index, const RECT &rawItemRect, const
         // Avoid double-stroking between inactive tab and the active tab.
         if (index + 1 != g_activeDocument)
         {
-            RECT separator = titleBandRect;
+            RECT separator = contentRect;
             separator.left = std::max(separator.left, separator.right - std::max(1, TabScalePx(1)));
             FillSolidRectDc(hdc, separator, palette.stripBorder);
         }
@@ -1395,33 +1376,17 @@ static void DrawTabItemVisual(HDC hdc, int index, const RECT &rawItemRect, const
     if (drawFont)
         oldFont = SelectObject(hdc, drawFont);
 
-    RECT textRect = {};
-    if (showClose)
-    {
-        textRect = TabTextRect(titleBandRect);
-    }
-    else
-    {
-        textRect = titleBandRect;
-        textRect.left += TabScalePx(12);
-        textRect.right -= TabScalePx(12);
-        if (textRect.right < textRect.left)
-            textRect.right = textRect.left;
-    }
+    RECT textRect = titleBandRect;
+    textRect.left += TabScalePx(12);
+    textRect.right -= TabScalePx(12);
+    if (textRect.right < textRect.left)
+        textRect.right = textRect.left;
     std::wstring label = DocumentTabLabel(g_documents[index]);
     SetBkMode(hdc, TRANSPARENT);
     SetTextColor(hdc, selected ? palette.activeTextColor : palette.textColor);
     DrawTextW(hdc, label.c_str(), -1, &textRect, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX);
     if (oldFont)
         SelectObject(hdc, oldFont);
-
-    if (showClose)
-    {
-        RECT closeRect = TabCloseRect(titleBandRect);
-        if (closeHovered)
-            FillSolidRectDc(hdc, closeRect, palette.closeHoverBg);
-        DrawCloseGlyph(hdc, closeRect, closeHovered ? palette.closeHoverFg : palette.closeColor);
-    }
 }
 
 [[maybe_unused]] static void PaintTabStripVisual(HDC hdc)
@@ -1443,6 +1408,67 @@ static void DrawTabItemVisual(HDC hdc, int index, const RECT &rawItemRect, const
     }
 }
 
+static void ReleaseTabBackbuffer()
+{
+    if (g_tabBackbufferDc && g_tabBackbufferPrevBitmap)
+        SelectObject(g_tabBackbufferDc, g_tabBackbufferPrevBitmap);
+
+    if (g_tabBackbufferBitmap)
+    {
+        DeleteObject(g_tabBackbufferBitmap);
+        g_tabBackbufferBitmap = nullptr;
+    }
+    if (g_tabBackbufferDc)
+    {
+        DeleteDC(g_tabBackbufferDc);
+        g_tabBackbufferDc = nullptr;
+    }
+    g_tabBackbufferPrevBitmap = nullptr;
+    g_tabBackbufferWidth = 0;
+    g_tabBackbufferHeight = 0;
+}
+
+static bool EnsureTabBackbuffer(HDC targetHdc, int width, int height, HDC &outMemDc)
+{
+    outMemDc = nullptr;
+    if (!targetHdc || width <= 0 || height <= 0)
+        return false;
+
+    if (!g_tabBackbufferDc)
+    {
+        g_tabBackbufferDc = CreateCompatibleDC(targetHdc);
+        if (!g_tabBackbufferDc)
+            return false;
+    }
+
+    const bool sizeChanged = (g_tabBackbufferWidth != width) || (g_tabBackbufferHeight != height);
+    if (g_tabBackbufferBitmap && sizeChanged)
+    {
+        if (g_tabBackbufferPrevBitmap)
+            SelectObject(g_tabBackbufferDc, g_tabBackbufferPrevBitmap);
+        DeleteObject(g_tabBackbufferBitmap);
+        g_tabBackbufferBitmap = nullptr;
+    }
+
+    if (!g_tabBackbufferBitmap)
+    {
+        g_tabBackbufferBitmap = CreateCompatibleBitmap(targetHdc, width, height);
+        if (!g_tabBackbufferBitmap)
+        {
+            ReleaseTabBackbuffer();
+            return false;
+        }
+        g_tabBackbufferWidth = width;
+        g_tabBackbufferHeight = height;
+    }
+
+    HGDIOBJ oldBitmap = SelectObject(g_tabBackbufferDc, g_tabBackbufferBitmap);
+    if (!g_tabBackbufferPrevBitmap && oldBitmap && oldBitmap != HGDI_ERROR)
+        g_tabBackbufferPrevBitmap = reinterpret_cast<HBITMAP>(oldBitmap);
+    outMemDc = g_tabBackbufferDc;
+    return true;
+}
+
 static void PaintTabStripBuffered(HWND hwnd, HDC targetHdc)
 {
     if (!hwnd || !targetHdc)
@@ -1453,41 +1479,50 @@ static void PaintTabStripBuffered(HWND hwnd, HDC targetHdc)
     const int width = std::max(1, static_cast<int>(rcClient.right - rcClient.left));
     const int height = std::max(1, static_cast<int>(rcClient.bottom - rcClient.top));
 
-    HDC memDc = CreateCompatibleDC(targetHdc);
-    if (!memDc)
+    HDC memDc = nullptr;
+    if (!EnsureTabBackbuffer(targetHdc, width, height, memDc))
     {
         PaintTabStripVisual(targetHdc);
         return;
     }
 
-    HBITMAP backBuffer = CreateCompatibleBitmap(targetHdc, width, height);
-    if (!backBuffer)
-    {
-        DeleteDC(memDc);
-        PaintTabStripVisual(targetHdc);
-        return;
-    }
-
-    HGDIOBJ oldBitmap = SelectObject(memDc, backBuffer);
     PaintTabStripVisual(memDc);
-    BitBlt(targetHdc, 0, 0, width, height, memDc, 0, 0, SRCCOPY);
-    SelectObject(memDc, oldBitmap);
-    DeleteObject(backBuffer);
-    DeleteDC(memDc);
+
+    RECT blitRect{};
+    if (GetClipBox(targetHdc, &blitRect) == ERROR ||
+        blitRect.right <= blitRect.left ||
+        blitRect.bottom <= blitRect.top)
+    {
+        blitRect.left = 0;
+        blitRect.top = 0;
+        blitRect.right = width;
+        blitRect.bottom = height;
+    }
+
+    const int blitWidth = std::max(1, static_cast<int>(blitRect.right - blitRect.left));
+    const int blitHeight = std::max(1, static_cast<int>(blitRect.bottom - blitRect.top));
+    BitBlt(targetHdc, blitRect.left, blitRect.top, blitWidth, blitHeight, memDc, blitRect.left, blitRect.top, SRCCOPY);
 }
 
 static void UpdateTabsHoverState(HWND hwnd, POINT ptClient)
 {
     TCHITTESTINFO hit{};
     hit.pt = ptClient;
+    const int prevHoverIndex = g_hoverTabIndex;
     const int hoverIndex = TabCtrl_HitTest(hwnd, &hit);
-    const bool hoverClose = hoverIndex >= 0 && IsTabCloseRectHit(hoverIndex, ptClient);
-
-    if (hoverIndex != g_hoverTabIndex || hoverClose != g_hoverTabClose)
+    if (hoverIndex != g_hoverTabIndex)
     {
         g_hoverTabIndex = hoverIndex;
-        g_hoverTabClose = hoverClose;
-        InvalidateRect(hwnd, nullptr, FALSE);
+        g_hoverTabClose = false;
+        if (prevHoverIndex != hoverIndex)
+        {
+            InvalidateTabItem(hwnd, prevHoverIndex);
+            InvalidateTabItem(hwnd, hoverIndex);
+        }
+        else
+        {
+            InvalidateTabItem(hwnd, hoverIndex);
+        }
     }
 
     if (!g_trackingTabsMouse)
@@ -1539,6 +1574,7 @@ static LRESULT CALLBACK TabsSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
     case WM_STYLECHANGED:
     case WM_SETTINGCHANGE:
     case WM_DPICHANGED:
+        ReleaseTabBackbuffer();
         TabRefreshDpi();
         TabRefreshVisualMetrics();
         g_tabsCustomDrawObserved = false;
@@ -1549,6 +1585,7 @@ static LRESULT CALLBACK TabsSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
             return 1;
         break;
     case WM_PRINTCLIENT:
+    case WM_PRINT:
         if (IsDarkMode())
         {
             HDC hdc = reinterpret_cast<HDC>(wParam);
@@ -1613,12 +1650,13 @@ static LRESULT CALLBACK TabsSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
     }
     case WM_MOUSELEAVE:
     {
+        const int prevHoverIndex = g_hoverTabIndex;
         g_trackingTabsMouse = false;
         if (g_hoverTabIndex != -1 || g_hoverTabClose)
         {
             g_hoverTabIndex = -1;
             g_hoverTabClose = false;
-            InvalidateRect(hwnd, nullptr, FALSE);
+            InvalidateTabItem(hwnd, prevHoverIndex);
         }
         break;
     }
@@ -1729,7 +1767,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             }
         }
         g_hwndTabs = CreateWindowExW(0, WC_TABCONTROLW, L"",
-                                     WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_TABSTOP | TCS_HOTTRACK | TCS_FOCUSNEVER,
+                                     WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_TABSTOP | TCS_FOCUSNEVER,
                                      0, 0, 100, TabScalePx(36), hwnd, reinterpret_cast<HMENU>(IDC_TABS), GetModuleHandleW(nullptr), nullptr);
         if (g_hwndTabs)
         {
@@ -2246,7 +2284,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         if (pnmh->hwndFrom == g_hwndTabs && !g_state.useTabs)
             return 0;
         if (pnmh->hwndFrom == g_hwndTabs && pnmh->code == NM_CUSTOMDRAW)
+        {
+            // Dark mode tab strip is rendered in subclass WM_PAINT to avoid split paint paths.
+            if (IsDarkMode())
+                return CDRF_DODEFAULT;
             return HandleTabsCustomDraw(reinterpret_cast<LPNMCUSTOMDRAW>(lParam));
+        }
         if (pnmh->hwndFrom == g_hwndTabs && pnmh->code == TCN_SELCHANGE)
         {
             if (g_updatingTabs)
@@ -2378,6 +2421,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
         UnloadBundledFonts();
         TabDestroyFonts();
+        ReleaseTabBackbuffer();
         PostQuitMessage(0);
         return 0;
     }

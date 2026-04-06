@@ -6,6 +6,7 @@
 */
 
 #include "editor.h"
+#include "core/list_continuation.h"
 #include "core/types.h"
 #include "core/globals.h"
 #include "theme.h"
@@ -16,7 +17,6 @@
 #include <commctrl.h>
 #include <algorithm>
 #include <cwctype>
-#include <limits>
 
 #ifndef EM_BEGINUNDOACTION
 #define EM_BEGINUNDOACTION (WM_USER + 84)
@@ -146,25 +146,11 @@ bool g_suppressNextReturnChar = false;
 struct ListContinuation
 {
     bool enabled = false;
+    bool exitListMode = false;
+    LONG lineStart = 0;
+    LONG lineEnd = 0;
     std::wstring continuationPrefix;
 };
-
-bool IsListSpacingChar(wchar_t ch)
-{
-    return ch == L' ' || ch == L'\t';
-}
-
-std::wstring ContinuationSpacing(const std::wstring &body, size_t spacingStart, size_t spacingEnd)
-{
-    if (spacingEnd > spacingStart)
-        return body.substr(spacingStart, spacingEnd - spacingStart);
-    return L" ";
-}
-
-bool IsBulletMarker(wchar_t ch)
-{
-    return ch == L'-' || ch == L'*' || ch == L'+' || ch == L'\x2022';
-}
 
 bool BuildListContinuationForEnter(HWND hwnd, ListContinuation &continuation)
 {
@@ -187,8 +173,9 @@ bool BuildListContinuationForEnter(HWND hwnd, ListContinuation &continuation)
         return false;
 
     const LONG logicalLineEnd = lineStart + lineLength;
+    continuation.lineStart = lineStart;
+    continuation.lineEnd = logicalLineEnd;
     const LONG caretInLine = static_cast<LONG>(selStart) - lineStart;
-    const bool caretAtLineEnd = (static_cast<LONG>(selStart) == logicalLineEnd);
 
     std::wstring lineText(static_cast<size_t>(lineLength) + 1, L'\0');
     if (lineLength > 0)
@@ -201,77 +188,13 @@ bool BuildListContinuationForEnter(HWND hwnd, ListContinuation &continuation)
     }
     lineText.resize(static_cast<size_t>(lineLength));
 
-    size_t indentLength = 0;
-    while (indentLength < lineText.size() && IsListSpacingChar(lineText[indentLength]))
-        ++indentLength;
-
-    if (indentLength >= lineText.size())
+    const ListContinuationPlan plan = BuildListContinuationPlan(lineText, static_cast<size_t>(caretInLine));
+    if (!plan.matched)
         return false;
 
-    const std::wstring body = lineText.substr(indentLength);
-    if (body.empty())
-        return false;
-
-    if (IsBulletMarker(body[0]))
-    {
-        size_t spacingStart = 1;
-        size_t spacingEnd = spacingStart;
-        while (spacingEnd < body.size() && IsListSpacingChar(body[spacingEnd]))
-            ++spacingEnd;
-        const std::wstring itemContent = body.substr(spacingEnd);
-        continuation.enabled = true;
-        if (itemContent.empty() && !caretAtLineEnd)
-            return false;
-        if (caretInLine < static_cast<LONG>(indentLength + spacingEnd))
-            return false;
-
-        continuation.continuationPrefix = lineText.substr(0, indentLength);
-        continuation.continuationPrefix.push_back(body[0]);
-        continuation.continuationPrefix += ContinuationSpacing(body, spacingStart, spacingEnd);
-        return true;
-    }
-
-    size_t digitsEnd = 0;
-    while (digitsEnd < body.size() && iswdigit(static_cast<wint_t>(body[digitsEnd])))
-        ++digitsEnd;
-    if (digitsEnd == 0 || digitsEnd >= body.size())
-        return false;
-
-    const wchar_t delimiter = body[digitsEnd];
-    if (delimiter != L'.' && delimiter != L')')
-        return false;
-
-    size_t spacingStart = digitsEnd + 1;
-    size_t spacingEnd = spacingStart;
-    while (spacingEnd < body.size() && IsListSpacingChar(body[spacingEnd]))
-        ++spacingEnd;
-
-    unsigned long long number = 0;
-    for (size_t i = 0; i < digitsEnd; ++i)
-    {
-        const unsigned long long digit = static_cast<unsigned long long>(body[i] - L'0');
-        if (number > (std::numeric_limits<unsigned long long>::max() - digit) / 10)
-            return false;
-        number = (number * 10) + digit;
-    }
-    if (number == std::numeric_limits<unsigned long long>::max())
-        return false;
-
-    const std::wstring itemContent = body.substr(spacingEnd);
     continuation.enabled = true;
-    if (itemContent.empty() && !caretAtLineEnd)
-        return false;
-    if (caretInLine < static_cast<LONG>(indentLength + spacingEnd))
-        return false;
-
-    std::wstring nextNumberText = std::to_wstring(number + 1);
-    if (digitsEnd > nextNumberText.size() && body[0] == L'0')
-        nextNumberText.insert(0, digitsEnd - nextNumberText.size(), L'0');
-
-    continuation.continuationPrefix = lineText.substr(0, indentLength);
-    continuation.continuationPrefix.append(nextNumberText);
-    continuation.continuationPrefix.push_back(delimiter);
-    continuation.continuationPrefix += ContinuationSpacing(body, spacingStart, spacingEnd);
+    continuation.exitListMode = plan.exitListMode;
+    continuation.continuationPrefix = plan.continuationPrefix;
     return true;
 }
 
@@ -285,6 +208,16 @@ bool HandleAutoListEnterKeyDown(HWND hwnd, WPARAM wParam, LPARAM)
     ListContinuation continuation{};
     if (!BuildListContinuationForEnter(hwnd, continuation) || !continuation.enabled)
         return false;
+
+    if (continuation.exitListMode)
+    {
+        SendMessageW(hwnd, EM_BEGINUNDOACTION, 0, 0);
+        SendMessageW(hwnd, EM_SETSEL, static_cast<WPARAM>(continuation.lineStart), static_cast<LPARAM>(continuation.lineEnd));
+        SendMessageW(hwnd, EM_REPLACESEL, TRUE, reinterpret_cast<LPARAM>(L""));
+        SendMessageW(hwnd, EM_ENDUNDOACTION, 0, 0);
+        g_suppressNextReturnChar = true;
+        return true;
+    }
 
     std::wstring insertText = L"\r\n";
     insertText += continuation.continuationPrefix;
@@ -321,6 +254,44 @@ bool HandleInlineFormattingShortcut(HWND hwnd, WPARAM wParam)
     case 'X':
         if (shiftPressed)
             commandId = IDM_FORMAT_STRIKETHROUGH;
+        break;
+    default:
+        break;
+    }
+
+    if (commandId == 0)
+        return false;
+
+    SendMessageW(g_hwndMain, WM_COMMAND, MAKEWPARAM(commandId, 0), 0);
+    SetFocus(hwnd);
+    return true;
+}
+
+bool HandleTabManagementShortcut(HWND hwnd, WPARAM wParam)
+{
+    if (!g_hwndMain || !g_state.useTabs || !IsKeyPressed(VK_CONTROL) || IsKeyPressed(VK_MENU))
+        return false;
+
+    const bool shiftPressed = IsKeyPressed(VK_SHIFT);
+    WORD commandId = 0;
+    switch (wParam)
+    {
+    case VK_TAB:
+        commandId = shiftPressed ? IDM_FILE_PREVTAB : IDM_FILE_NEXTTAB;
+        break;
+    case VK_NEXT:
+        commandId = IDM_FILE_NEXTTAB; // Ctrl+PgDn
+        break;
+    case VK_PRIOR:
+        commandId = IDM_FILE_PREVTAB; // Ctrl+PgUp
+        break;
+    case 'W':
+        if (!shiftPressed)
+            commandId = IDM_FILE_CLOSETAB;
+        break;
+    case 'T':
+        if (shiftPressed)
+            commandId = IDM_FILE_REOPENCLOSEDTAB;
         break;
     default:
         break;
@@ -606,6 +577,8 @@ LRESULT CALLBACK EditorSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         break;
     }
     case WM_KEYDOWN:
+        if (HandleTabManagementShortcut(hwnd, wParam))
+            return 0;
         if (HandleInlineFormattingShortcut(hwnd, wParam))
             return 0;
         if (HandleAutoListEnterKeyDown(hwnd, wParam, lParam))

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(technical-standard-note VERSION 1.3.6 LANGUAGES CXX)
+project(technical-standard-note VERSION 1.3.7 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -31,6 +31,7 @@ add_executable(technical-standard-note WIN32
     src/core/crash_diagnostics.cpp
     src/core/file_dialog_filters.cpp
     src/core/globals.cpp
+    src/core/list_continuation.cpp
     src/core/session_io.cpp
     src/core/text_codec.cpp
     src/core/versioning.cpp
@@ -154,6 +155,14 @@ if(TECHNICAL_STANDARD_NOTE_BUILD_TESTS)
     target_include_directories(technical-standard-note-tab-model-ops-tests PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/src/modules)
     target_compile_definitions(technical-standard-note-tab-model-ops-tests PRIVATE UNICODE _UNICODE NOMINMAX)
     add_test(NAME technical-standard-note-tab-model-ops-tests COMMAND technical-standard-note-tab-model-ops-tests)
+
+    add_executable(technical-standard-note-list-continuation-tests
+        tests/list_continuation_tests.cpp
+        src/core/list_continuation.cpp
+    )
+    target_include_directories(technical-standard-note-list-continuation-tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_compile_definitions(technical-standard-note-list-continuation-tests PRIVATE UNICODE _UNICODE NOMINMAX)
+    add_test(NAME technical-standard-note-list-continuation-tests COMMAND technical-standard-note-list-continuation-tests)
 endif()
 
 # Installation
