@@ -88,8 +88,11 @@ for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
     $attemptStart = [DateTime]::UtcNow
     Write-Host "[benchmark-gate] Attempt $attempt/$MaxAttempts running --benchmark-ci ..."
 
+    $exitCode = 0
     & $exeFull --benchmark-ci
-    $exitCode = $LASTEXITCODE
+    if (Test-Path Variable:\LASTEXITCODE) {
+        $exitCode = [int]$LASTEXITCODE
+    }
 
     $report = Get-LatestBenchmarkReport -Directory $benchDir
     if (-not $report) {
