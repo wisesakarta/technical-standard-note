@@ -1,5 +1,5 @@
 /*
-  Saka Studio & Engineering
+  Technical Standard
 
   Main entry point and window procedure for Technical Standard Note text editor application.
   Coordinates all modules and handles Windows message loop and command dispatching.

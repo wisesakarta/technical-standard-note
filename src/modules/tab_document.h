@@ -1,5 +1,5 @@
 /*
-  Saka Studio & Engineering
+  Technical Standard
 
   Shared tab document model used by tab/session controllers.
 */

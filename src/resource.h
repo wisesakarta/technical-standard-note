@@ -1,5 +1,5 @@
 /*
-  Saka Studio & Engineering
+  Technical Standard
 
   Resource identifiers for menus, accelerators, icons, and control IDs.
 */

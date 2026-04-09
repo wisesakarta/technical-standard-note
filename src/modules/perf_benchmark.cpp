@@ -1,5 +1,5 @@
 /*
-  Saka Studio & Engineering
+  Technical Standard
 
   Internal performance benchmark runner used by --benchmark-ci and Help menu.
 */

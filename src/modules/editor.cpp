@@ -1,5 +1,5 @@
 /*
-  Saka Studio & Engineering
+  Technical Standard
 
   Editor control functions for text manipulation, font rendering, and zoom control.
   Handles RichEdit control subclassing, word wrap, and cursor position tracking.
@@ -137,6 +137,44 @@ static void ApplyFlatScrollbarStyle(HWND hwnd)
     FlatSB_SetScrollProp(hwnd, WSB_PROP_VBKGCOLOR, trackColor, FALSE);
     FlatSB_SetScrollProp(hwnd, WSB_PROP_HBKGCOLOR, trackColor, FALSE);
     InvalidateRect(hwnd, nullptr, FALSE);
+}
+
+static void ConfigureEditorInputExperience(HWND hwnd)
+{
+    if (!hwnd)
+        return;
+
+    DWORD disableLangOptions = 0;
+#ifdef IMF_SPELLCHECKING
+    disableLangOptions |= IMF_SPELLCHECKING;
+#endif
+#ifdef IMF_TKBPREDICTION
+    disableLangOptions |= IMF_TKBPREDICTION;
+#endif
+
+    if (disableLangOptions != 0)
+    {
+        const LRESULT currentLangOptions = SendMessageW(hwnd, EM_GETLANGOPTIONS, 0, 0);
+        SendMessageW(hwnd, EM_SETLANGOPTIONS, 0, static_cast<LPARAM>(currentLangOptions & ~static_cast<LRESULT>(disableLangOptions)));
+    }
+
+    DWORD disableEditStyles = 0;
+#ifdef SES_CTFALLOWPROOFING
+    disableEditStyles |= SES_CTFALLOWPROOFING;
+#endif
+#ifdef SES_CTFALLOWSMARTTAG
+    disableEditStyles |= SES_CTFALLOWSMARTTAG;
+#endif
+#ifdef SES_CTFALLOWEMBED
+    disableEditStyles |= SES_CTFALLOWEMBED;
+#endif
+
+    if (disableEditStyles != 0)
+        SendMessageW(hwnd, EM_SETEDITSTYLE, disableEditStyles, 0);
+
+#ifdef EM_SETAUTOCORRECTPROC
+    SendMessageW(hwnd, EM_SETAUTOCORRECTPROC, 0, 0);
+#endif
 }
 
 namespace
@@ -366,6 +404,7 @@ void ConfigureEditorControl(HWND hwnd)
     if (SendMessageW(hwnd, EM_SETTEXTMODE, mode, 0) != 0)
         SendMessageW(hwnd, EM_SETTEXTMODE, TM_PLAINTEXT | TM_MULTILEVELUNDO | TM_MULTICODEPAGE, 0);
     SendMessageW(hwnd, EM_AUTOURLDETECT, FALSE, 0);
+    ConfigureEditorInputExperience(hwnd);
     ApplyFlatScrollbarStyle(hwnd);
 }
 

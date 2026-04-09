@@ -10,7 +10,7 @@
 ## This Project / Proyek Ini
 
 - Project name / Nama proyek: Technical Standard Note
-- Maintainer / Pemelihara: Saka Studio & Engineering
+- Maintainer / Pemelihara: Technical Standard
 - Product direction / Arah produk: lightweight, plain-text-first Windows editor / editor Windows ringan dengan fokus teks polos
 
 ## Major Modification Areas / Area Modifikasi Utama

@@ -1,5 +1,5 @@
 /*
-  Saka Studio & Engineering
+  Technical Standard
 
   Core type definitions including enums and structs for the notepad application.
   Provides encoding types, line endings, themes, background settings and app state.

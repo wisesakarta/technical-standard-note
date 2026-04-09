@@ -1,5 +1,5 @@
 /*
-  Saka Studio & Engineering
+  Technical Standard
 
   Dialog box implementations for find, replace, goto, font selection, and more.
   Provides modeless and modal dialog creation with proper event handling.

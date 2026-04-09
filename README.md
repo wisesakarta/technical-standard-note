@@ -44,6 +44,7 @@ Detail atribusi dan log modifikasi:
 
 - See detailed roadmap: `docs/roadmap.md`.
 - Lihat roadmap detail: `docs/roadmap.md`.
+- Android roadmap: `docs/android/mobile-roadmap.md`.
 
 ## Testing and Research Docs
 
@@ -58,6 +59,9 @@ Detail atribusi dan log modifikasi:
 - C++17 toolchain:
   - MinGW-w64, or / atau
   - MSVC (Visual Studio 2022+).
+- For Android module:
+  - Android Studio (Koala or newer recommended).
+  - Android SDK / platform tools.
 
 ## Build
 
@@ -116,6 +120,29 @@ cmake --build build/nmake-debug
 .\build\nmake-debug\technical-standard-note.exe
 ```
 
+### Android Baseline (new)
+
+Android module lives in `android/` and is independent from desktop code.
+
+Open with Android Studio:
+1. `File -> Open`
+2. Select directory `android/`
+3. Sync Gradle, then run module `app`
+
+Optional CLI:
+
+```powershell
+cd android
+.\gradlew.bat assembleDebug
+```
+
+Android release publish from local machine:
+
+```powershell
+cd android
+.\publish-release.ps1 -Tag v0.9.0-beta1 -Prerelease
+```
+
 ## Test
 
 ### Unit/Logic tests via script (recommended)
@@ -167,6 +194,11 @@ Model distribusi yang disarankan untuk pengguna publik:
 
 Current CI workflow: `.github/workflows/build.yml`.  
 Workflow CI saat ini: `.github/workflows/build.yml`.
+
+Android distribution is also GitHub Releases based (direct APK/AAB download).  
+Distribusi Android juga berbasis GitHub Releases (download APK/AAB langsung).
+
+Android direct-download guide: `docs/android/direct-download.md`.
 
 ## Weekly Test Build / Build Uji Mingguan
 
@@ -230,6 +262,7 @@ src/
   modules/
   main.cpp
   notepad.rc
+android/
 tools/
 docs/
 research/ (generated benchmark outputs; gitignored)

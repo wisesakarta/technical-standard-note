@@ -20,3 +20,12 @@ Berkeley Mono v2.002/
 technical-standard-note-logo-second/
 technical-standard-note-logoset/
 src/Technical Standard Note Icon.png
+
+# Android
+android/.gradle/
+android/**/build/
+android/dist/
+android/local.properties
+android/.idea/
+*.apk
+*.aab

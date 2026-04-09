@@ -1,5 +1,5 @@
 /*
-  Saka Studio & Engineering
+  Technical Standard
 
   Theme management implementation with Windows dark mode API integration support.
   Controls visual appearance of title bar, menu bar, editor, and status controls.

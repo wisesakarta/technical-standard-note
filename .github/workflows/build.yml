@@ -107,8 +107,69 @@ jobs:
             build-${{ matrix.arch }}/technical-standard-note-portable-${{ matrix.arch }}.zip
             build-${{ matrix.arch }}/benchmark-reports/benchmark-*.txt
 
+  android_build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK Packages
+        run: |
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Prepare Release Keystore (optional)
+        env:
+          TSN_RELEASE_STORE_FILE_B64: ${{ secrets.TSN_RELEASE_STORE_FILE_B64 }}
+          TSN_RELEASE_STORE_PASSWORD: ${{ secrets.TSN_RELEASE_STORE_PASSWORD }}
+          TSN_RELEASE_KEY_ALIAS: ${{ secrets.TSN_RELEASE_KEY_ALIAS }}
+          TSN_RELEASE_KEY_PASSWORD: ${{ secrets.TSN_RELEASE_KEY_PASSWORD }}
+        run: |
+          if [ -n "$TSN_RELEASE_STORE_FILE_B64" ]; then
+            KEYSTORE_PATH="$RUNNER_TEMP/tsn-release.jks"
+            echo "$TSN_RELEASE_STORE_FILE_B64" | base64 --decode > "$KEYSTORE_PATH"
+            echo "TSN_RELEASE_STORE_FILE=$KEYSTORE_PATH" >> "$GITHUB_ENV"
+            echo "TSN_RELEASE_STORE_PASSWORD=$TSN_RELEASE_STORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "TSN_RELEASE_KEY_ALIAS=$TSN_RELEASE_KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "TSN_RELEASE_KEY_PASSWORD=$TSN_RELEASE_KEY_PASSWORD" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build Android Release (APK + AAB)
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew :app:assembleRelease :app:bundleRelease
+
+      - name: Collect Android Artifacts
+        shell: bash
+        run: |
+          mkdir -p android/dist
+          cp android/app/build/outputs/apk/release/app-release.apk android/dist/technical-standard-note-mobile-release.apk
+          cp android/app/build/outputs/bundle/release/app-release.aab android/dist/technical-standard-note-mobile-release.aab
+          sha256sum android/dist/technical-standard-note-mobile-release.apk > android/dist/technical-standard-note-mobile-release.apk.sha256
+          sha256sum android/dist/technical-standard-note-mobile-release.aab > android/dist/technical-standard-note-mobile-release.aab.sha256
+
+      - name: Upload Android Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: technical-standard-note-android
+          if-no-files-found: error
+          path: |
+            android/dist/technical-standard-note-mobile-release.apk
+            android/dist/technical-standard-note-mobile-release.aab
+            android/dist/technical-standard-note-mobile-release.apk.sha256
+            android/dist/technical-standard-note-mobile-release.aab.sha256
+
   release:
-    needs: build
+    needs: [build, android_build]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
@@ -119,7 +180,7 @@ jobs:
 
       - name: Generate SHA256 Checksums
         run: |
-          find artifacts -type f \( -name "*.exe" -o -name "*.zip" \) -print0 | xargs -0 sha256sum > release-sha256.txt
+          find artifacts -type f \( -name "*.exe" -o -name "*.zip" -o -name "*.apk" -o -name "*.aab" \) -print0 | xargs -0 sha256sum > release-sha256.txt
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -127,6 +188,10 @@ jobs:
           files: |
             artifacts/**/technical-standard-note-setup-*.exe
             artifacts/**/technical-standard-note-portable-*.zip
+            artifacts/**/technical-standard-note-mobile-release.apk
+            artifacts/**/technical-standard-note-mobile-release.aab
+            artifacts/**/technical-standard-note-mobile-release.apk.sha256
+            artifacts/**/technical-standard-note-mobile-release.aab.sha256
             artifacts/**/benchmark-*.txt
             release-sha256.txt
         env:

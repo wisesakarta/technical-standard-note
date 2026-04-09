@@ -174,11 +174,11 @@ BEGIN
     BEGIN
         BLOCK "040904B0"
         BEGIN
-            VALUE "CompanyName", "Saka Studio & Engineering\0"
+            VALUE "CompanyName", "Technical Standard\0"
             VALUE "FileDescription", "Technical Standard Note\0"
             VALUE "FileVersion", "1.3.10\0"
             VALUE "InternalName", "technical-standard-note\0"
-            VALUE "LegalCopyright", "Copyright (c) 2026 Saka Studio & Engineering\0"
+            VALUE "LegalCopyright", "Copyright (c) 2026 Technical Standard\0"
             VALUE "OriginalFilename", "technical-standard-note.exe\0"
             VALUE "ProductName", "Technical Standard Note\0"
             VALUE "ProductVersion", "1.3.10\0"

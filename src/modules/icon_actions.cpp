@@ -1,5 +1,5 @@
 /*
-  Saka Studio & Engineering
+  Technical Standard
 
   Icon-related view actions (custom icon file, system icon picker, reset).
 */
