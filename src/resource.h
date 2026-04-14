@@ -1,5 +1,5 @@
 /*
-  Technical Standard
+  Solum
 
   Resource identifiers for menus, accelerators, icons, and control IDs.
 */
@@ -9,7 +9,6 @@
 #define IDR_MAINMENU 101
 #define IDR_ACCEL 102
 #define IDI_NOTEPAD 103
-#define IDR_LOGO_WORDMARK 104
 #define IDI_IN_APP_ICON 105
 
 #define IDC_EDITOR 1000

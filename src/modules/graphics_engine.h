@@ -1,5 +1,5 @@
-/*
-  Technical Standard
+﻿/*
+  Solum
   
   Direct2D graphics engine for high-performance native UI rendering.
   Handles resource lifecycle and provides primitives for hardware-accelerated visuals.

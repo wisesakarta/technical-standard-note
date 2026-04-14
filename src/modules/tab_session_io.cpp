@@ -1,5 +1,5 @@
-/*
-  Technical Standard
+﻿/*
+  Solum
 
   Session and disk I/O helpers for tab documents.
 */

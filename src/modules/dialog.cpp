@@ -1,5 +1,5 @@
 /*
-  Technical Standard
+  Solum
 
   Dialog box implementations for find, replace, goto, font selection, and more.
   Provides modeless and modal dialog creation with proper event handling.
@@ -159,29 +159,19 @@ INT_PTR HandleAboutPaint(HWND hWnd)
     
     FillSolidRectDc(hdc, rcClient, palette.stripBg);
 
-    if (EnsureBackgroundGraphicsReady())
+    if (true)
     {
-        Gdiplus::Graphics graphics(hdc);
-        graphics.SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBicubic);
-        graphics.SetSmoothingMode(Gdiplus::SmoothingModeHighQuality);
-
-        Gdiplus::Image* logo = LoadImageFromResource(GetModuleHandleW(nullptr), IDR_LOGO_WORDMARK, L"RCDATA");
-        if (logo)
+        // Draw the Floating In-App Icon (Transparent Monogram)
+        HICON hIcon = (HICON)LoadImageW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDI_IN_APP_ICON), IMAGE_ICON, ScaleDialogPx(64), ScaleDialogPx(64), LR_DEFAULTCOLOR);
+        if (hIcon)
         {
-            float imgW = static_cast<float>(logo->GetWidth());
-            float imgH = static_cast<float>(logo->GetHeight());
-            
-            float targetW = static_cast<float>(ScaleDialogPx(200));
-            float targetH = (imgH / imgW) * targetW;
-            
-            float x = (static_cast<float>(rcClient.right) - targetW) / 2.0f;
-            float y = static_cast<float>(ScaleDialogPx(40));
-
-            graphics.DrawImage(logo, x, y, targetW, targetH);
-            delete logo;
+            int iconSize = ScaleDialogPx(64);
+            int x = (rcClient.right - iconSize) / 2;
+            int y = ScaleDialogPx(40);
+            DrawIconEx(hdc, x, y, hIcon, iconSize, iconSize, 0, nullptr, DI_NORMAL);
+            DestroyIcon(hIcon);
         }
     }
-
 
     SetBkMode(hdc, TRANSPARENT);
     SetTextColor(hdc, palette.textColor);
@@ -190,15 +180,15 @@ INT_PTR HandleAboutPaint(HWND hWnd)
     HGDIOBJ oldFont = SelectObject(hdc, hFontReg);
 
     std::wstring verText = L"v" + std::wstring(APP_VERSION);
-    RECT rcVer = { 0, ScaleDialogPx(130), rcClient.right, ScaleDialogPx(155) };
+    RECT rcVer = { 0, ScaleDialogPx(115), rcClient.right, ScaleDialogPx(140) };
     DrawTextW(hdc, verText.c_str(), -1, &rcVer, DT_CENTER | DT_SINGLELINE | DT_NOPREFIX);
 
-    std::wstring copyText = L"Crafted with discipline by wisesakarta";
-    RECT rcCopy = { 0, ScaleDialogPx(160), rcClient.right, ScaleDialogPx(185) };
+    std::wstring copyText = L"Crafted with discipline by wisesakarta (Technical Standard)";
+    RECT rcCopy = { 0, ScaleDialogPx(145), rcClient.right, ScaleDialogPx(170) };
     DrawTextW(hdc, copyText.c_str(), -1, &rcCopy, DT_CENTER | DT_SINGLELINE | DT_NOPREFIX);
 
     std::wstring subText = L"Clarity. Function. Detail.";
-    RECT rcSub = { 0, ScaleDialogPx(180), rcClient.right, ScaleDialogPx(205) };
+    RECT rcSub = { 0, ScaleDialogPx(165), rcClient.right, ScaleDialogPx(190) };
     DrawTextW(hdc, subText.c_str(), -1, &rcSub, DT_CENTER | DT_SINGLELINE | DT_NOPREFIX);
 
     SelectObject(hdc, oldFont);
@@ -706,7 +696,7 @@ void ViewTransparency()
 void HelpAbout()
 {
     const auto &lang = GetLangStrings();
-    const wchar_t* clsName = L"TechnicalStandardAboutBox";
+    const wchar_t* clsName = L"SolumAboutBox";
 
     static bool clsRegistered = false;
     if (!clsRegistered)
@@ -730,7 +720,10 @@ void HelpAbout()
     int x = rcMain.left + (rcMain.right - rcMain.left - winW) / 2;
     int y = rcMain.top + (rcMain.bottom - rcMain.top - winH) / 2;
 
-    HWND hAbout = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_DLGMODALFRAME, clsName, lang.menuAbout.c_str(),
+    std::wstring title = lang.menuAbout;
+    title.erase(std::remove(title.begin(), title.end(), L'&'), title.end());
+
+    HWND hAbout = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_DLGMODALFRAME, clsName, title.c_str(),
                                   WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_VISIBLE,
                                   x, y, winW, winH, g_hwndMain, nullptr, GetModuleHandleW(nullptr), nullptr);
     

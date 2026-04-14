@@ -1,5 +1,5 @@
 /*
-  Technical Standard
+  Solum
 
   User interface functions for window title, status bar, and control layout.
   Manages window resizing, status bar parts, and UI state synchronization.
@@ -172,6 +172,7 @@ void ResizeControls()
 
     if (g_hwndSelectionAura)
     {
+        // Restored to main window child, position must account for top offsets
         MoveWindow(g_hwndSelectionAura, 0, editorTop, editorWidth, editorHeight, TRUE);
     }
 

@@ -3,8 +3,8 @@
 #include "lang.h"
 
 inline LangStrings g_langEN = {
-    L"Technical Standard Note",
-    L"TECHNICAL STANDARD NOTE",
+    L"Solum",
+    L"SOLUM",
     L"Untitled",
 
     L"&File",
@@ -69,7 +69,7 @@ inline LangStrings g_langEN = {
     L"Always on &Top",
 
     L"&Help",
-    L"&About Technical Standard Note",
+    L"&About Solum",
     L"&Check for Updates",
     L"Run &Performance Benchmark",
 
@@ -105,7 +105,7 @@ inline LangStrings g_langEN = {
     L"Cannot open file.",
     L"Cannot save file.",
     L"Error",
-    L"Technical Standard Note v1.3.10\n\nBuilt by Technical Standard.\nA lightweight Win32 text editor focused on speed, stability, and clarity.\n", //\nModify by 0x2o.net",
+    L"Solum v1.0.0\n\nA lightweight Win32 text editor focused on speed, stability, and clarity.\n", //\nModify by 0x2o.net",
     L"Cannot load RichEdit control.",
     L"Close other tabs first, then disable tab mode.",
     L"The line number is beyond the total number of lines.",

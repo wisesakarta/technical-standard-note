@@ -1,12 +1,12 @@
-# Technical Standard Note
+# Solum
 
 <p align="left">
-  <img src="src/logo_wordmark.png" alt="Technical Standard Note wordmark" width="420">
+  <img src="src/logo_wordmark.png" alt="Solum wordmark" width="420">
 </p>
 
-Technical Standard Note is a lightweight Win32 text editor focused on speed, stability, and clarity.
+Solum is a lightweight Win32 text editor focused on speed, stability, and clarity.
 
-Technical Standard Note adalah editor teks Win32 yang ringan dengan fokus pada kecepatan, stabilitas, dan kejelasan.
+Solum adalah editor teks Win32 yang ringan dengan fokus pada kecepatan, stabilitas, dan kejelasan.
 
 ## Scope
 
@@ -45,12 +45,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\dev-build.ps1 -Confi
 ## Runtime Benchmark
 
 ```powershell
-.\build\mingw-debug\technical-standard-note.exe --benchmark-ci
+.\build\mingw-debug\Solum.exe --benchmark-ci
 ```
 
 Benchmark reports are written to:
 
-- `%LOCALAPPDATA%\TechnicalStandardNote\benchmarks\benchmark-YYYYMMDD-HHMMSS.txt`
+- `%LOCALAPPDATA%\Solum\benchmarks\benchmark-YYYYMMDD-HHMMSS.txt`
 
 ## Release Channels
 
@@ -61,8 +61,8 @@ Repository CI workflow: `.github/workflows/build.yml`
 
 Release assets are intentionally minimal:
 
-- Desktop: `technical-standard-note-desktop-... .exe`
-- Mobile: `technical-standard-note-mobile-... .apk`
+- Desktop: `Solum-desktop-... .exe`
+- Mobile: `Solum-mobile-... .apk`
 
 ## Repository Hygiene Rules
 

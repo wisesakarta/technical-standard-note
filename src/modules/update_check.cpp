@@ -1,5 +1,5 @@
 /*
-  Technical Standard
+  Solum
 
   Update check flow for querying GitHub releases and presenting user prompts.
 */

@@ -1,5 +1,5 @@
 /*
-  Technical Standard
+  Solum
 
   Tab overflow spin-button custom chrome implementation.
 */
@@ -10,6 +10,8 @@
 #include "theme.h"
 
 #include <algorithm>
+#include <gdiplus.h>
+#include "background.h"
 
 namespace
 {
@@ -63,30 +65,40 @@ LRESULT CALLBACK TabSpinSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
 
             FillSolidRectDc(hdc, r, bg);
 
-            const int cx = r.left + (r.right - r.left) / 2;
-            const int cy = r.top + (r.bottom - r.top) / 2;
+            if (!EnsureBackgroundGraphicsReady())
+                return;
 
-            POINT pts[3]{};
+            Gdiplus::Graphics graphics(hdc);
+            graphics.SetSmoothingMode(Gdiplus::SmoothingModeHighQuality);
+
+            const float cx = static_cast<float>(r.left) + static_cast<float>(r.right - r.left) / 2.0f;
+            const float cy = static_cast<float>(r.top) + static_cast<float>(r.bottom - r.top) / 2.0f;
+
+            Gdiplus::PointF pts[3];
+            const float spread = 4.5f;
+            const float depth = 2.0f;
+
             if (isLeft)
             {
-                pts[0] = {cx + 1, cy - 4};
-                pts[1] = {cx - 2, cy};
-                pts[2] = {cx + 1, cy + 4};
+                pts[0] = { cx + depth, cy - spread };
+                pts[1] = { cx - depth, cy };
+                pts[2] = { cx + depth, cy + spread };
             }
             else
             {
-                pts[0] = {cx - 2, cy - 4};
-                pts[1] = {cx + 1, cy};
-                pts[2] = {cx - 2, cy + 4};
+                pts[0] = { cx - depth, cy - spread };
+                pts[1] = { cx + depth, cy };
+                pts[2] = { cx - depth, cy + spread };
             }
 
-            HPEN hPen = CreatePen(PS_SOLID, 2, palette.textColor);
-            HGDIOBJ oldPen = SelectObject(hdc, hPen);
+            Gdiplus::Color gdiColor;
+            gdiColor.SetFromCOLORREF(palette.textColor);
+            Gdiplus::Pen pen(gdiColor, 1.6f);
+            pen.SetStartCap(Gdiplus::LineCapRound);
+            pen.SetEndCap(Gdiplus::LineCapRound);
+            pen.SetLineJoin(Gdiplus::LineJoinRound);
 
-            Polyline(hdc, pts, 3);
-
-            SelectObject(hdc, oldPen);
-            DeleteObject(hPen);
+            graphics.DrawLines(&pen, pts, 3);
         };
 
         drawSpinButton(rcLeft, g_tabSpinHoverLeft, g_tabSpinPressLeft, true);
@@ -177,6 +189,30 @@ void TabSpinAttachIfNeeded(HWND hwndTabs)
         g_hwndTabSpin = hSpin;
         g_origTabSpinProc = reinterpret_cast<WNDPROC>(
             SetWindowLongPtrW(hSpin, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(TabSpinSubclassProc)));
+
+        // Force full-height to fit the tab bar
+        RECT rcTabs;
+        GetClientRect(hwndTabs, &rcTabs);
+        RECT rcSpin;
+        GetWindowRect(hSpin, &rcSpin);
+        MapWindowPoints(HWND_DESKTOP, hwndTabs, reinterpret_cast<LPPOINT>(&rcSpin), 2);
+        
+        int newHeight = rcTabs.bottom - rcTabs.top;
+        MoveWindow(hSpin, rcSpin.left, 0, rcSpin.right - rcSpin.left, newHeight, TRUE);
+    }
+    else if (hSpin && hSpin == g_hwndTabSpin)
+    {
+        // Keep it fitted on refreshes
+        RECT rcTabs;
+        GetClientRect(hwndTabs, &rcTabs);
+        RECT rcSpin;
+        GetWindowRect(hSpin, &rcSpin);
+        MapWindowPoints(HWND_DESKTOP, hwndTabs, reinterpret_cast<LPPOINT>(&rcSpin), 2);
+        int newHeight = rcTabs.bottom - rcTabs.top;
+        if ((rcSpin.bottom - rcSpin.top) != newHeight || rcSpin.top != 0)
+        {
+            MoveWindow(hSpin, rcSpin.left, 0, rcSpin.right - rcSpin.left, newHeight, TRUE);
+        }
     }
     else if (!hSpin && g_hwndTabSpin)
     {

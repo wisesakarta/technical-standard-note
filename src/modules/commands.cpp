@@ -1,5 +1,5 @@
 /*
-  Technical Standard
+  Solum
 
   Menu command handlers for File, Edit, Format, and View menu operations.
   Bridges user actions to core functionality modules.
@@ -60,7 +60,7 @@ void ToggleSelectionEffect(DWORD effectMask, DWORD effectFlag)
     SetFocus(g_hwndEditor);
 }
 
-#if !defined(TECHNICAL_STANDARD_NOTE_SPLIT_COMMAND_MODULES)
+#if !defined(SOLUM_SPLIT_COMMAND_MODULES)
 using fnPickIconDlg = BOOL(WINAPI *)(HWND, LPWSTR, UINT, int *);
 
 bool IsIconResourceContainer(const std::wstring &path)
@@ -430,7 +430,7 @@ bool RunScrollStressBenchmark(const std::wstring &label, double budgetMs, PerfBe
 std::wstring FormatBenchmarkReport(const std::vector<PerfBenchmarkResult> &results)
 {
     std::wostringstream ss;
-    ss << L"Technical Standard Note Performance Benchmark\n";
+    ss << L"Solum Performance Benchmark\n";
     ss << L"Scope: open pipeline + typing burst + scroll stress\n";
     ss << L"Hardware dependent. Use this for regression tracking.\n\n";
 
@@ -777,7 +777,7 @@ void ViewStatusBar()
     SaveFontSettings();
 }
 
-#if !defined(TECHNICAL_STANDARD_NOTE_SPLIT_COMMAND_MODULES)
+#if !defined(SOLUM_SPLIT_COMMAND_MODULES)
 void ViewChangeIcon()
 {
     const auto &lang = GetLangStrings();

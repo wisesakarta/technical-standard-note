@@ -1,5 +1,5 @@
-/*
-  Technical Standard
+﻿/*
+  Solum
 
   Menu command handlers for File, Edit, Format, and View menu operations.
   Bridges user actions to core functionality modules.

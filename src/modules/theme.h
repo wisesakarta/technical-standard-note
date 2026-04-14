@@ -1,5 +1,5 @@
-/*
-  Technical Standard
+﻿/*
+  Solum
 
   Theme management module providing dark mode support and visual style functions.
   Handles Windows immersive dark mode APIs and applies theme to all UI elements.

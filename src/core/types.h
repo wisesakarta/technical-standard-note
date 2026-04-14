@@ -1,5 +1,5 @@
 /*
-  Technical Standard
+  Solum
 
   Core type definitions including enums and structs for the notepad application.
   Provides encoding types, line endings, themes, background settings and app state.
@@ -12,17 +12,16 @@
 #include <string>
 #include <deque>
 
-#define APP_NAME L"Technical Standard Note"
-#define APP_VERSION L"1.3.11"
+#define APP_NAME L"Solum"
+#define APP_VERSION L"1.0.0"
 #define APP_GITHUB_OWNER L"wisesakarta"
-#define APP_GITHUB_REPO L"technical-standard-note"
-#define APP_REPOSITORY_URL L"https://github.com/wisesakarta/technical-standard-note"
+#define APP_GITHUB_REPO L"solum"
+#define APP_REPOSITORY_URL L"https://github.com/wisesakarta/solum"
 #define ZOOM_MIN 25
 #define ZOOM_MAX 500
 #define ZOOM_DEFAULT 100
 #define MAX_RECENT_FILES 10
 constexpr size_t LARGE_FILE_MODE_THRESHOLD_BYTES = 5u * 1024u * 1024u;
-
 #ifndef DWMWA_USE_IMMERSIVE_DARK_MODE
 #define DWMWA_USE_IMMERSIVE_DARK_MODE 20
 #endif

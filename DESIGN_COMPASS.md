@@ -1,4 +1,4 @@
-# Technical Standard Note Design Compass
+# Solum Design Compass
 
 This file is the visual and product compass for every UI/UX and implementation decision in this repository.
 

@@ -1,5 +1,5 @@
-/*
-  Technical Standard
+﻿/*
+  Solum
 
   Global variable declarations shared across all application modules for window handles.
   Contains handles for main window, editor, status bar, dialogs, and GDI resources.

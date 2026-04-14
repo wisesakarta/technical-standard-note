@@ -1,5 +1,6 @@
 #include "selection_aura.h"
 #include "core/globals.h"
+#include "theme.h"
 #include "design_system.h"
 #include "editor.h"
 #include <richedit.h>
@@ -44,16 +45,54 @@ void SelectionAura::Update(HWND hwnd)
     CHARRANGE cr;
     SendMessageW(state->hwndEditor, EM_EXGETSEL, 0, reinterpret_cast<LPARAM>(&cr));
     
-    state->selectionRectCount = 0;
-    if (cr.cpMin != cr.cpMax) {
-        // Simple bounding box logic for now (Renaissance Step 1)
-        POINTL ptMin, ptMax;
-        SendMessageW(state->hwndEditor, EM_POSFROMCHAR, reinterpret_cast<WPARAM>(&ptMin), cr.cpMin);
-        SendMessageW(state->hwndEditor, EM_POSFROMCHAR, reinterpret_cast<WPARAM>(&ptMax), cr.cpMax);
+    // EM_HIDESELECTION hides the system visual highlight while keeping the selection range active.
+    SendMessageW(state->hwndEditor, EM_HIDESELECTION, (WPARAM)TRUE, 0);
+
+
+
+    
+    if (cr.cpMin == cr.cpMax) {
+        if (state->opacity.endValue != 0.0f) {
+            state->opacity.Start(state->opacity.GetCurrentValue(), 0.0f, 200.0f);
+            SetTimer(hwnd, 0x1001, 16, nullptr);
+        }
+    } else {
+        if (state->opacity.endValue == 0.0f) {
+            state->opacity.Start(state->opacity.GetCurrentValue(), 1.0f, 150.0f);
+            SetTimer(hwnd, 0x1001, 16, nullptr);
+        }
+
+        const int lineStart = static_cast<int>(SendMessageW(state->hwndEditor, EM_EXLINEFROMCHAR, 0, cr.cpMin));
+        const int lineEnd = static_cast<int>(SendMessageW(state->hwndEditor, EM_EXLINEFROMCHAR, 0, cr.cpMax));
         
-        // Convert editor client to aura client (which should be same)
-        state->selectionRects[0] = { (LONG)ptMin.x, (LONG)ptMin.y, (LONG)ptMax.x, (LONG)ptMax.y + 20 };
-        state->selectionRectCount = 1;
+        state->selectionRectCount = 0;
+        for (int i = lineStart; i <= lineEnd && state->selectionRectCount < 64; ++i) {
+            const int lineIndex = static_cast<int>(SendMessageW(state->hwndEditor, EM_LINEINDEX, i, 0));
+            if (lineIndex == -1) continue;
+
+            const int lineLength = static_cast<int>(SendMessageW(state->hwndEditor, EM_LINELENGTH, lineIndex, 0));
+            const int selStart = std::max(lineIndex, (int)cr.cpMin);
+            const int selEnd = std::min(lineIndex + lineLength, (int)cr.cpMax);
+
+            if (selStart < selEnd) {
+                POINT ptStart{}, ptEnd{};
+                SendMessageW(state->hwndEditor, EM_POSFROMCHAR, reinterpret_cast<WPARAM>(&ptStart), selStart);
+                SendMessageW(state->hwndEditor, EM_POSFROMCHAR, reinterpret_cast<WPARAM>(&ptEnd), selEnd);
+
+                if (selEnd == lineIndex + lineLength && i < lineEnd) {
+                    RECT rcClient;
+                    GetClientRect(state->hwndEditor, &rcClient);
+                    ptEnd.x = rcClient.right;
+                }
+
+                // Minimum width for visible selection if identical points
+                if (ptEnd.x <= ptStart.x) ptEnd.x = ptStart.x + 8;
+
+                state->selectionRects[state->selectionRectCount++] = { 
+                    ptStart.x, ptStart.y, ptEnd.x, ptStart.y + 22 
+                };
+            }
+        }
     }
     
     InvalidateRect(hwnd, nullptr, FALSE);
@@ -79,25 +118,40 @@ LRESULT CALLBACK SelectionAura::WindowProc(HWND hwnd, UINT msg, WPARAM wParam, L
     case WM_SIZE:
         if (state) state->engine.Resize(LOWORD(lParam), HIWORD(lParam));
         return 0;
+    case WM_TIMER:
+        if (wParam == 0x1001 && state) {
+            InvalidateRect(hwnd, nullptr, FALSE);
+            if (!state->opacity.active) {
+                KillTimer(hwnd, 0x1001);
+            }
+        }
+        return 0;
     case WM_PAINT: {
         if (!state) return 0;
         PAINTSTRUCT ps;
         BeginPaint(hwnd, &ps);
         
         auto context = state->engine.GetDeviceContext();
-        if (context) {
+        const float alpha = state->opacity.GetCurrentValue();
+        if (context && alpha > 0.01f) {
             context->BeginDraw();
-            context->Clear(nullptr); // Fully transparent bg
+            context->Clear(nullptr);
             
             if (state->selectionRectCount > 0) {
-                D2D1_COLOR_F glowColor = Graphics::Engine::ColorToD2D(DesignSystem::Color::kAccent, 0.4f);
+                // High-Intensity Glow (Librarian's Polish): 0.95f ensures visibility even in bright themes
+                D2D1_COLOR_F glowColor = Graphics::Engine::ColorToD2D(DesignSystem::Color::kAccent, 0.95f * alpha);
                 
                 for (int i = 0; i < state->selectionRectCount; ++i) {
                     RECT& r = state->selectionRects[i];
-                    D2D1_RECT_F rect = D2D1::RectF((float)r.left, (float)r.top, (float)r.right, (float)r.bottom);
-                    state->engine.DrawBlurredRect(rect, glowColor, 4.0f);
+                    // Geometric definition: Expanding to provide a solid, premium highlight feel
+                    D2D1_RECT_F rect = D2D1::RectF((float)r.left, (float)r.top, (float)r.right, (float)r.bottom + 1.0f);
+                    state->engine.DrawBlurredRect(rect, glowColor, 1.2f); // Sharp focus for initial verification
                 }
             }
+            context->EndDraw();
+        } else if (context) {
+            context->BeginDraw();
+            context->Clear(nullptr);
             context->EndDraw();
         }
         EndPaint(hwnd, &ps);

@@ -1,6 +1,7 @@
 #pragma once
 #include <windows.h>
 #include "graphics_engine.h"
+#include "animation_controller.h"
 
 namespace UI {
 
@@ -17,8 +18,9 @@ private:
     struct State {
         HWND hwndEditor;
         Graphics::Engine engine;
-        RECT selectionRects[16];
+        RECT selectionRects[64];
         int selectionRectCount = 0;
+        Animation::Transition opacity;
     };
 };
 

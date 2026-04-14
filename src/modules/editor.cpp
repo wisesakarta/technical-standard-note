@@ -1,5 +1,5 @@
 /*
-  Technical Standard
+  Solum
 
   Editor control functions for text manipulation, font rendering, and zoom control.
   Handles RichEdit control subclassing, word wrap, and cursor position tracking.
@@ -690,6 +690,7 @@ LRESULT CALLBACK EditorSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
                 }
             }
         }
+        if (g_hwndSelectionAura) InvalidateRect(g_hwndSelectionAura, nullptr, FALSE);
         break;
     case WM_SIZE:
         EnsureNativeScrollbarsHidden(hwnd);
@@ -702,6 +703,7 @@ LRESULT CALLBACK EditorSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         break;
     case WM_VSCROLL:
         if (g_hwndScrollbar) InvalidateRect(g_hwndScrollbar, nullptr, FALSE);
+        if (g_hwndSelectionAura) InvalidateRect(g_hwndSelectionAura, nullptr, FALSE);
         break;
     case WM_CHAR:
     {
@@ -768,6 +770,7 @@ LRESULT CALLBACK EditorSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         }
         ScrollEditorFromMouseWheel(hwnd, wParam);
         if (g_hwndScrollbar) InvalidateRect(g_hwndScrollbar, nullptr, FALSE);
+        if (g_hwndSelectionAura) InvalidateRect(g_hwndSelectionAura, nullptr, FALSE);
         return 0;
     }
     case WM_MOUSEHWHEEL:

@@ -1,7 +1,7 @@
 /*
-  Technical Standard
+  Solum
 
-  Main entry point and window procedure for Technical Standard Note text editor application.
+  Main entry point and window procedure for Solum text editor application.
   Coordinates all modules and handles Windows message loop and command dispatching.
 */
 
@@ -120,7 +120,7 @@ static bool ParseEnvBool(const wchar_t *value, bool &out)
 static void ApplyRuntimeFeatureOverrides()
 {
     wchar_t envValue[32] = {};
-    const DWORD len = GetEnvironmentVariableW(L"TSN_PREMIUM_HEADER", envValue, static_cast<DWORD>(std::size(envValue)));
+    const DWORD len = GetEnvironmentVariableW(L"SOLUM_PREMIUM_HEADER", envValue, static_cast<DWORD>(std::size(envValue)));
     if (len == 0 || len >= std::size(envValue))
         return;
 
@@ -2053,6 +2053,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
         UI::SelectionAura::RegisterClass(GetModuleHandle(nullptr));
         g_hwndSelectionAura = UI::SelectionAura::Create(hwnd, g_hwndEditor);
+        if (g_hwndSelectionAura)
+            SetWindowPos(g_hwndSelectionAura, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 
         UI::CommandPalette::RegisterClass(GetModuleHandle(nullptr));
         g_hwndCommandPalette = UI::CommandPalette::Create(hwnd);
@@ -2830,8 +2832,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
     wc.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
     wc.lpszMenuName = MAKEINTRESOURCEW(IDR_MAINMENU);
-    wc.lpszClassName = L"NotepadClass";
-    wc.hIconSm = LoadIconW(hInstance, MAKEINTRESOURCEW(IDI_NOTEPAD));
+    wc.lpszClassName = L"SolumClass";
+    wc.hIconSm = LoadIconW(hInstance, MAKEINTRESOURCEW(IDI_IN_APP_ICON));
     RegisterClassExW(&wc);
 
     INITCOMMONCONTROLSEX icc = {sizeof(icc), ICC_BAR_CLASSES};
@@ -2839,7 +2841,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
     const auto &lang = GetLangStrings();
     std::wstring initialTitle = lang.untitled + L" - " + lang.appName;
-    g_hwndMain = CreateWindowExW(0, L"NotepadClass", initialTitle.c_str(),
+    g_hwndMain = CreateWindowExW(0, L"SolumClass", initialTitle.c_str(),
                                  WS_OVERLAPPEDWINDOW | WS_MAXIMIZEBOX | WS_CLIPCHILDREN, g_state.windowX, g_state.windowY, g_state.windowWidth, g_state.windowHeight,
                                  nullptr, nullptr, hInstance, nullptr);
     CrashDiagnosticsLog(L"Main window created");

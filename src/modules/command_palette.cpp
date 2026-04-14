@@ -1,5 +1,5 @@
-/*
-  Technical Standard — Studio Command Palette
+﻿/*
+  Solum â€” Studio Command Palette
 
   A keyboard-driven command interface rendered via Direct2D + DirectWrite.
   Uses native design-system tokens for visual coherence.
@@ -7,7 +7,7 @@
   Key decisions (Karpathy Surgical Mode):
     - SetForegroundWindow for reliable keyboard capture.
     - WM_ACTIVATE(WA_INACTIVE) auto-dismisses on click-outside.
-    - Message loop bypass in main.cpp — accelerators are skipped
+    - Message loop bypass in main.cpp â€” accelerators are skipped
       when the palette is visible, so WM_CHAR reaches us.
     - All colors derived from DesignSystem::Color via IsDarkMode().
     - Selection uses a thin 3px accent bar, not a full-row flood.
@@ -23,7 +23,7 @@
 
 namespace UI {
 
-// ── Layout constants (8dp grid) ──────────────────────────────────
+// â”€â”€ Layout constants (8dp grid) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 static constexpr int   kPaletteWidth   = 560;
 static constexpr float kQueryAreaH     = 52.0f;
 static constexpr float kItemH          = 46.0f;
@@ -301,7 +301,7 @@ LRESULT CALLBACK CommandPalette::WindowProc(HWND hwnd, UINT msg, WPARAM wParam, 
 
         ctx->BeginDraw();
 
-        // ── Resolve design-system colors based on current theme ──
+        // â”€â”€ Resolve design-system colors based on current theme â”€â”€
         const bool dark = IsDarkMode();
         const D2D1_COLOR_F bgColor    = Graphics::Engine::ColorToD2D(dark ? DesignSystem::Color::kDarkBg : DesignSystem::Color::kLightBg);
         const D2D1_COLOR_F inkColor   = Graphics::Engine::ColorToD2D(dark ? DesignSystem::Color::kDarkInk : DesignSystem::Color::kLightInk);
@@ -362,17 +362,17 @@ LRESULT CALLBACK CommandPalette::WindowProc(HWND hwnd, UINT msg, WPARAM wParam, 
 
         if (brInk && fmtQuery && fmtLabel) {
 
-            // ── Query input field ───────────────────────────────
+            // â”€â”€ Query input field â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             // Background is cleared above. The Win32 EDIT control perfectly overlays over D2D
             // rendering native text input dynamically!
 
-            // ── Separator ───────────────────────────────────────
+            // â”€â”€ Separator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             ctx->DrawLine(
                 D2D1::Point2F(0, kQueryAreaH),
                 D2D1::Point2F(w, kQueryAreaH),
                 brEdge, kBorderW);
 
-            // ── Results list ────────────────────────────────────
+            // â”€â”€ Results list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             float yBase = kQueryAreaH + 4.0f;
             int resultCount = std::min((int)s->results.size(), kMaxVisible);
 
@@ -408,7 +408,7 @@ LRESULT CALLBACK CommandPalette::WindowProc(HWND hwnd, UINT msg, WPARAM wParam, 
                 }
             }
 
-            // ── Outer border ────────────────────────────────────
+            // â”€â”€ Outer border â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             ctx->DrawRectangle(D2D1::RectF(0, 0, w - 1, h - 1), brEdge, kBorderW);
         }
 

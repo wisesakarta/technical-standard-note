@@ -3,8 +3,8 @@
 #include "lang.h"
 
 inline LangStrings g_langJA = {
-    L"Technical Standard Note",
-    L"TECHNICAL STANDARD NOTE",
+    L"Solum",
+    L"SOLUM",
     L"無題",
 
     L"ファイル(&F)",
@@ -69,7 +69,7 @@ inline LangStrings g_langJA = {
     L"常に最前面に表示(&T)",
 
     L"ヘルプ(&H)",
-    L"Technical Standard Note について(&A)",
+    L"Solum について(&A)",
     L"更新を確認(&U)...",
     L"パフォーマンス ベンチマーク(&B)",
 
@@ -105,7 +105,7 @@ inline LangStrings g_langJA = {
     L"ファイルを開けません。",
     L"ファイルを保存できません。",
     L"エラー",
-    L"Technical Standard Note v1.3.10\n\nTechnical Standard により開発。\n速度、安定性、明快さに重点を置いた軽量 Win32 テキストエディタです。\n",
+    L"Solum v1.0.0\n\n速度、安定性、明快さに重点を置いた軽量 Win32 テキストエディタです。\n",
     L"RichEdit コントロールを読み込めません。",
     L"先に他のタブを閉じてから、タブモードを無効にしてください。",
     L"指定した行番号は、ファイル内の総行数を超えています。",

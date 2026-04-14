@@ -1,5 +1,5 @@
-/*
-  Technical Standard
+﻿/*
+  Solum
 
   Settings management for persisting user preferences via Windows Registry.
   Handles font name and font size storage and retrieval.

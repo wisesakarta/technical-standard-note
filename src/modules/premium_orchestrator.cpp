@@ -1,5 +1,5 @@
-/*
-  Technical Standard
+﻿/*
+  Solum
 
   Premium header render orchestration extracted from main.cpp.
 */

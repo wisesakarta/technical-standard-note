@@ -1,5 +1,5 @@
-/*
-  Technical Standard
+﻿/*
+  Solum
 
   Icon-related view actions (custom icon file, system icon picker, reset).
 */

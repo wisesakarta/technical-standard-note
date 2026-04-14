@@ -1,5 +1,5 @@
-/*
-  Technical Standard
+﻿/*
+  Solum
 
   Global variable definitions for the notepad application storing runtime state.
   Initializes all shared resources like window handles, GDI objects, and app state.

@@ -1,5 +1,5 @@
 /*
-  Technical Standard
+  Solum
 
   Centralized desktop design-system tokens for visual consistency.
 */
@@ -62,6 +62,6 @@ inline constexpr unsigned long kLightInk = 0x1A1A1A;     // #1A1A1A (Ink Dark)
 inline constexpr unsigned long kLightEdge = 0x8F8F8F;     // #1A1A1A @ 0.62
 inline constexpr unsigned long kLightMuted = 0x4D4D4D;   // #1A1A1A @ 0.76
 
-inline constexpr unsigned long kAccent = 0x0050FF;       // #FF5000 (Safety Orange - BGR)
+inline constexpr unsigned long kAccent = 0x2CBAEE;       // #EEBA2C (Solum Amber - BGR Format)
 }
 }
