@@ -35,7 +35,7 @@ function Get-BenchmarkDirectory {
         return $dir
     }
 
-    $defaultDir = Join-Path $env:LOCALAPPDATA "TechnicalStandardNote\benchmarks"
+    $defaultDir = Join-Path $env:LOCALAPPDATA "Otso\benchmarks"
     New-Item -ItemType Directory -Force -Path $defaultDir | Out-Null
     return $defaultDir
 }

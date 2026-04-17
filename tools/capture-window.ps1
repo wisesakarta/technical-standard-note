@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$ProcessName = "technical-standard-note",
+    [string]$ProcessName = "otso",
     [string]$TitleContains = "",
     [string]$OutputPath = "",
     [int]$TimeoutSeconds = 10

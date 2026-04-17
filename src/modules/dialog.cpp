@@ -1,5 +1,5 @@
 /*
-  Solum
+  Otso
 
   Dialog box implementations for find, replace, goto, font selection, and more.
   Provides modeless and modal dialog creation with proper event handling.
@@ -32,10 +32,8 @@ INT_PTR HandleDialogCtlColor(UINT msg, WPARAM wParam);
 
 HFONT DialogUiFont()
 {
-    HFONT hFont = TabGetRegularFont();
-    if (!hFont)
-        hFont = reinterpret_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
-    return hFont;
+    // Use the established regular font from the design system
+    return TabGetRegularFont();
 }
 
 int ScaleDialogPx(int px)
@@ -162,12 +160,26 @@ INT_PTR HandleAboutPaint(HWND hWnd)
     if (true)
     {
         // Draw the Floating In-App Icon (Transparent Monogram)
-        HICON hIcon = (HICON)LoadImageW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDI_IN_APP_ICON), IMAGE_ICON, ScaleDialogPx(64), ScaleDialogPx(64), LR_DEFAULTCOLOR);
+        // Select icon based on current theme for better visibility
+        int iconId = IDI_IN_APP_ICON; // Default
+        if (dark) {
+            iconId = IDI_IN_APP_ICON_DARK;
+        } else {
+            iconId = IDI_IN_APP_ICON_LIGHT;
+        }
+
+        HICON hIcon = (HICON)LoadImageW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(iconId), IMAGE_ICON, ScaleDialogPx(112), ScaleDialogPx(112), LR_DEFAULTCOLOR);
+        
+        // Fallback to generic in-app icon if themed versions are not available
+        if (!hIcon) {
+            hIcon = (HICON)LoadImageW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDI_IN_APP_ICON), IMAGE_ICON, ScaleDialogPx(112), ScaleDialogPx(112), LR_DEFAULTCOLOR);
+        }
+
         if (hIcon)
         {
-            int iconSize = ScaleDialogPx(64);
+            int iconSize = ScaleDialogPx(112);
             int x = (rcClient.right - iconSize) / 2;
-            int y = ScaleDialogPx(40);
+            int y = ScaleDialogPx(25);
             DrawIconEx(hdc, x, y, hIcon, iconSize, iconSize, 0, nullptr, DI_NORMAL);
             DestroyIcon(hIcon);
         }
@@ -177,23 +189,48 @@ INT_PTR HandleAboutPaint(HWND hWnd)
     SetTextColor(hdc, palette.textColor);
 
     const HFONT hFontReg = DialogUiFont();
-    HGDIOBJ oldFont = SelectObject(hdc, hFontReg);
 
+    LOGFONTW mediumLf{};
+    if (hFontReg)
+    {
+        GetObjectW(hFontReg, sizeof(mediumLf), &mediumLf);
+        wcscpy_s(mediumLf.lfFaceName, DesignSystem::kUiFontPrimaryMedium);
+        mediumLf.lfWeight = FW_MEDIUM;
+    }
+    HFONT hFontMedium = CreateFontIndirectW(&mediumLf);
+    if (!hFontMedium) hFontMedium = hFontReg;
+
+    LOGFONTW semiboldLf{};
+    if (hFontReg)
+    {
+        GetObjectW(hFontReg, sizeof(semiboldLf), &semiboldLf);
+        wcscpy_s(semiboldLf.lfFaceName, DesignSystem::kUiFontPrimarySemibold);
+        semiboldLf.lfWeight = FW_SEMIBOLD;
+    }
+    HFONT hFontSemibold = CreateFontIndirectW(&semiboldLf);
+    if (!hFontSemibold) hFontSemibold = hFontReg;
+
+    HGDIOBJ oldFont = SelectObject(hdc, hFontSemibold);
     std::wstring verText = L"v" + std::wstring(APP_VERSION);
-    RECT rcVer = { 0, ScaleDialogPx(115), rcClient.right, ScaleDialogPx(140) };
+    RECT rcVer = { 0, ScaleDialogPx(150), rcClient.right, ScaleDialogPx(175) };
     DrawTextW(hdc, verText.c_str(), -1, &rcVer, DT_CENTER | DT_SINGLELINE | DT_NOPREFIX);
 
+    SelectObject(hdc, hFontMedium);
     std::wstring copyText = L"Crafted with discipline by wisesakarta (Technical Standard)";
-    RECT rcCopy = { 0, ScaleDialogPx(145), rcClient.right, ScaleDialogPx(170) };
+    RECT rcCopy = { 0, ScaleDialogPx(180), rcClient.right, ScaleDialogPx(205) };
     DrawTextW(hdc, copyText.c_str(), -1, &rcCopy, DT_CENTER | DT_SINGLELINE | DT_NOPREFIX);
 
     std::wstring subText = L"Clarity. Function. Detail.";
-    RECT rcSub = { 0, ScaleDialogPx(165), rcClient.right, ScaleDialogPx(190) };
+    RECT rcSub = { 0, ScaleDialogPx(200), rcClient.right, ScaleDialogPx(225) };
     DrawTextW(hdc, subText.c_str(), -1, &rcSub, DT_CENTER | DT_SINGLELINE | DT_NOPREFIX);
 
     SelectObject(hdc, oldFont);
+    if (hFontMedium && hFontMedium != hFontReg) DeleteObject(hFontMedium);
+    if (hFontSemibold && hFontSemibold != hFontReg) DeleteObject(hFontSemibold);
+
     EndPaint(hWnd, &ps);
     return 0;
+
 }
 
 LRESULT CALLBACK AboutWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -201,8 +238,16 @@ LRESULT CALLBACK AboutWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     switch (msg)
     {
     case WM_CREATE:
-        SetTitleBarDark(hWnd, IsDarkMode());
+    {
+        bool dark = IsDarkMode();
+        SetTitleBarDark(hWnd, dark);
+        
+        // Sync Window Icon
+        int iconId = dark ? IDI_IN_APP_ICON_DARK : IDI_IN_APP_ICON_LIGHT;
+        HICON hSmall = (HICON)LoadImageW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(iconId), IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR);
+        if (hSmall) SendMessageW(hWnd, WM_SETICON, ICON_SMALL, (LPARAM)hSmall);
         return 0;
+    }
     case WM_PAINT:
         HandleAboutPaint(hWnd);
         return 0;
@@ -696,7 +741,7 @@ void ViewTransparency()
 void HelpAbout()
 {
     const auto &lang = GetLangStrings();
-    const wchar_t* clsName = L"SolumAboutBox";
+    const wchar_t* clsName = L"OtsoAboutBox";
 
     static bool clsRegistered = false;
     if (!clsRegistered)
@@ -712,7 +757,7 @@ void HelpAbout()
         clsRegistered = true;
     }
 
-    int winW = ScaleDialogPx(380);
+    int winW = ScaleDialogPx(420);
     int winH = ScaleDialogPx(260);
 
     RECT rcMain;

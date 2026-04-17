@@ -1,5 +1,5 @@
-﻿/*
-  Solum
+/*
+  Otso
 
   Theme management implementation with Windows dark mode API integration support.
   Controls visual appearance of title bar, menu bar, editor, and status controls.
@@ -351,6 +351,17 @@ void ApplyTheme()
         g_hbrDialogEditDark = CreateSolidBrush(ThemeColorEditorBackground(true));
     }
     ApplyThemeToWindowTree(g_hwndMain);
+
+    // Surgical Icon Swap: Big (Taskbar) is the Brand Logo, Small (Title Bar) is the Themed Monogram
+    const int monogramId = dark ? IDI_IN_APP_ICON_DARK : IDI_IN_APP_ICON_LIGHT;
+    
+    // 1. Update Title Bar / Small Icon (Themed Bear)
+    HICON hSmall = (HICON)LoadImageW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(monogramId), IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR | LR_SHARED);
+    if (hSmall) SendMessageW(g_hwndMain, WM_SETICON, ICON_SMALL, (LPARAM)hSmall);
+    
+    // 2. Update Taskbar / Big Icon (Permanent Brand Logo)
+    HICON hBig = (HICON)LoadImageW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDI_NOTEPAD), IMAGE_ICON, GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON), LR_DEFAULTCOLOR | LR_SHARED);
+    if (hBig) SendMessageW(g_hwndMain, WM_SETICON, ICON_BIG, (LPARAM)hBig);
     if (g_hwndTabs)
         SetWindowTheme(g_hwndTabs, L"", nullptr);
     COLORREF bgColor = ThemeColorEditorBackground(dark != FALSE);

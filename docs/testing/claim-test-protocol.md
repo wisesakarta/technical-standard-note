@@ -1,5 +1,5 @@
-# Claim Test Protocol - Technical Standard Note vs Microsoft Notepad
-# Protokol Uji Klaim - Technical Standard Note vs Microsoft Notepad
+# Claim Test Protocol - Otso vs Microsoft Notepad
+# Protokol Uji Klaim - Otso vs Microsoft Notepad
 
 Purpose: compare performance fairly with identical test conditions.  
 Tujuan: membandingkan performa secara adil dengan kondisi uji yang sama.

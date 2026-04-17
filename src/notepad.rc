@@ -10,6 +10,8 @@
 
 IDI_NOTEPAD ICON "app_icon.ico"
 IDI_IN_APP_ICON ICON "in_app_icon.ico"
+IDI_IN_APP_ICON_LIGHT ICON "in_app_icon_light.ico"
+IDI_IN_APP_ICON_DARK ICON "in_app_icon_dark.ico"
 CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "notepad.manifest"
 
 IDR_MAINMENU MENU
@@ -121,7 +123,7 @@ BEGIN
         MENUITEM "Check for &Updates...", IDM_HELP_CHECKUPDATES
         MENUITEM "Run &Performance Benchmark", IDM_HELP_PERF_BENCHMARK
         MENUITEM SEPARATOR
-        MENUITEM "&About Solum", IDM_HELP_ABOUT
+        MENUITEM "&About Otso", IDM_HELP_ABOUT
     END
 END
 
@@ -176,14 +178,14 @@ BEGIN
     BEGIN
         BLOCK "040904B0"
         BEGIN
-            VALUE "CompanyName", "Solum Studio\0"
-            VALUE "FileDescription", "Solum - Modern Text Editor\0"
-            VALUE "FileVersion", "1.0.0\0"
-            VALUE "InternalName", "Solum\0"
-            VALUE "LegalCopyright", "Copyright (c) 2026 Solum\0"
-            VALUE "OriginalFilename", "Solum.exe\0"
-            VALUE "ProductName", "Solum\0"
-            VALUE "ProductVersion", "1.0.0\0"
+            VALUE "CompanyName", "Technical Standard\0"
+            VALUE "FileDescription", "Otso * Native Text Editor\0"
+            VALUE "FileVersion", "1.1.0\0"
+            VALUE "InternalName", "Otso\0"
+            VALUE "LegalCopyright", "Copyright (c) 2026 Otso\0"
+            VALUE "OriginalFilename", "Otso.exe\0"
+            VALUE "ProductName", "Otso\0"
+            VALUE "ProductVersion", "1.1.0\0"
         END
     END
     BLOCK "VarFileInfo"

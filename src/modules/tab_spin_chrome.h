@@ -1,5 +1,5 @@
-﻿/*
-  Solum
+/*
+  Otso
 
   Tab overflow spin-button custom chrome extracted from main.cpp.
 */

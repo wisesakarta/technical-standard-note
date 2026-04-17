@@ -1,5 +1,5 @@
-﻿/*
-  Solum
+/*
+  Otso
 
   Icon-related view actions (custom icon file, system icon picker, reset).
 */

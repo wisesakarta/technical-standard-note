@@ -5,7 +5,7 @@
 
 static LangID g_currentLang = LangID::EN;
 static const LangStrings *g_currentStrings = &g_langEN;
-static constexpr const wchar_t *kLangSettingsKey = L"Software\\TechnicalStandardNote";
+static constexpr const wchar_t *kLangSettingsKey = L"Software\\Otso";
 static constexpr const wchar_t *kLegacyLangSettingsKey = L"Software\\LegacyNotepad";
 
 LangID LoadLanguageSetting()

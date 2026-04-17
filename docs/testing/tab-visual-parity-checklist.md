@@ -17,7 +17,7 @@ Goal: keep dark mode tab strip structure identical to light mode (color-only var
 
 ```powershell
 pwsh -NoProfile -File .\tools\capture-window.ps1 `
-  -ProcessName technical-standard-note `
+  -ProcessName otso `
   -OutputPath .\artifacts\screenshots\tabs-light-baseline.png
 ```
 
@@ -26,7 +26,7 @@ pwsh -NoProfile -File .\tools\capture-window.ps1 `
 
 ```powershell
 pwsh -NoProfile -File .\tools\capture-window.ps1 `
-  -ProcessName technical-standard-note `
+  -ProcessName otso `
   -OutputPath .\artifacts\screenshots\tabs-dark-current.png
 ```
 

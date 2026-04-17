@@ -1,5 +1,5 @@
-﻿/*
-  Solum
+/*
+  Otso
   
   Native animation controller providing cubic-bezier easing and hardware-accelerated 
   transitions for the premium UI/UX experience.

@@ -1,5 +1,5 @@
-﻿/*
-  Solum
+/*
+  Otso
 
   Settings management for persisting user preferences via Windows Registry.
   Handles font name and font size storage and retrieval.
@@ -12,7 +12,7 @@
 #include <algorithm>
 #include <vector>
 
-#define SETTINGS_KEY L"Software\\TechnicalStandardNote"
+#define SETTINGS_KEY L"Software\\Otso"
 #define LEGACY_SETTINGS_KEY L"Software\\LegacyNotepad"
 #define FONT_NAME_VALUE L"FontName"
 #define FONT_SIZE_VALUE L"FontSize"

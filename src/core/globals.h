@@ -1,5 +1,5 @@
-﻿/*
-  Solum
+/*
+  Otso
 
   Global variable declarations shared across all application modules for window handles.
   Contains handles for main window, editor, status bar, dialogs, and GDI resources.
@@ -16,6 +16,7 @@ extern HWND g_hwndMain;
 extern HWND g_hwndEditor;
 extern HWND g_hwndStatus;
 extern HWND g_hwndTabs;
+extern int g_pressedTabIndex;
 extern HWND g_hwndCommandBar;
 extern HWND g_hwndFindDlg;
 extern HWND g_hwndScrollbar;

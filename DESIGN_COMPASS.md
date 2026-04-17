@@ -1,4 +1,4 @@
-# Solum Design Compass
+# Otso Design Compass
 
 This file is the visual and product compass for every UI/UX and implementation decision in this repository.
 

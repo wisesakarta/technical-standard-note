@@ -1,5 +1,5 @@
 /*
-  Solum
+  Otso
 
   Resource identifiers for menus, accelerators, icons, and control IDs.
 */
@@ -10,6 +10,8 @@
 #define IDR_ACCEL 102
 #define IDI_NOTEPAD 103
 #define IDI_IN_APP_ICON 105
+#define IDI_IN_APP_ICON_LIGHT 106
+#define IDI_IN_APP_ICON_DARK 107
 
 #define IDC_EDITOR 1000
 #define IDC_STATUSBAR 1001

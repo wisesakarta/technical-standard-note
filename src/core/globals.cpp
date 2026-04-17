@@ -1,5 +1,5 @@
-﻿/*
-  Solum
+/*
+  Otso
 
   Global variable definitions for the notepad application storing runtime state.
   Initializes all shared resources like window handles, GDI objects, and app state.
@@ -11,6 +11,7 @@ HWND g_hwndMain = nullptr;
 HWND g_hwndEditor = nullptr;
 HWND g_hwndStatus = nullptr;
 HWND g_hwndTabs = nullptr;
+int g_pressedTabIndex = -1;
 HWND g_hwndCommandBar = nullptr;
 HWND g_hwndFindDlg = nullptr;
 HWND g_hwndScrollbar = nullptr;

@@ -36,7 +36,7 @@ std::wstring BaseDiagnosticsDir()
     {
         root = L".";
     }
-    root += L"\\TechnicalStandardNote";
+    root += L"\\Otso";
     CreateDirectoryW(root.c_str(), nullptr);
     return root;
 }

@@ -1,7 +1,7 @@
 /*
-  Solum
+  Otso
 
-  Main entry point and window procedure for Solum text editor application.
+  Main entry point and window procedure for Otso text editor application.
   Coordinates all modules and handles Windows message loop and command dispatching.
 */
 
@@ -123,7 +123,7 @@ static bool ParseEnvBool(const wchar_t *value, bool &out)
 static void ApplyRuntimeFeatureOverrides()
 {
     wchar_t envValue[32] = {};
-    const DWORD len = GetEnvironmentVariableW(L"SOLUM_PREMIUM_HEADER", envValue, static_cast<DWORD>(std::size(envValue)));
+    const DWORD len = GetEnvironmentVariableW(L"Otso_PREMIUM_HEADER", envValue, static_cast<DWORD>(std::size(envValue)));
     if (len == 0 || len >= std::size(envValue))
         return;
 
@@ -138,6 +138,16 @@ static void LoadBundledFonts()
         return;
 
     static constexpr const wchar_t *kBundledFontFiles[] = {
+        L"GeneralSans-Regular.otf",
+        L"GeneralSans-Medium.otf",
+        L"GeneralSans-Semibold.otf",
+        L"GeneralSans-Bold.otf",
+        L"GeneralSans-Italic.otf",
+        L"GeneralSans-MediumItalic.otf",
+        L"GeneralSans-SemiboldItalic.otf",
+        L"GeneralSans-BoldItalic.otf",
+        L"GeneralSans-Light.otf",
+        L"GeneralSans-LightItalic.otf",
         L"AkkuratMonoLL-Regular.ttf",
         L"AkkuratMonoLL-Bold.ttf",
         L"AkkuratMonoLL-Italic.ttf",
@@ -155,7 +165,7 @@ static void LoadBundledFonts()
         if (GetFileAttributesW(fontPath.c_str()) == INVALID_FILE_ATTRIBUTES)
             continue;
 
-        const int added = AddFontResourceExW(fontPath.c_str(), 0, nullptr);
+        const int added = AddFontResourceExW(fontPath.c_str(), FR_PRIVATE, nullptr);
         if (added > 0)
             g_loadedPrivateFonts.push_back(std::move(fontPath));
     }
@@ -186,9 +196,9 @@ static HFONT BuildChromeUiFont()
 
     LOGFONTW lf{};
     lf.lfHeight = -MulDiv(DesignSystem::kChromeFontPointSize, dpiY, 72);
-    lf.lfWeight = FW_NORMAL;
+    lf.lfWeight = FW_MEDIUM;
     lf.lfQuality = CLEARTYPE_QUALITY;
-    wcscpy_s(lf.lfFaceName, DesignSystem::kUiFontPrimary);
+    wcscpy_s(lf.lfFaceName, DesignSystem::kUiFontPrimaryMedium);
 
     HFONT font = CreateFontIndirectW(&lf);
     if (font)
@@ -271,7 +281,8 @@ static std::wstring CommandBarLabelForId(UINT_PTR id)
 }
 
 static void RefreshCommandBarLabels();
-static bool GetTabContentRect(int index, RECT &contentRect);
+static bool GetTabBackgroundRect(int index, RECT &bgRect);
+static bool GetTabInteractionRect(int index, RECT &interRect);
 
 static void RefreshCommandBarLabels()
 {
@@ -373,6 +384,47 @@ static void RefreshCommandBarStates()
 }
 
 static void UpdateRuntimeMenuStates();
+static bool GetTabBackgroundRect(int index, RECT &bgRect)
+{
+    if (!g_hwndTabs || index < 0) return false;
+    const int tabCount = std::min(TabCtrl_GetItemCount(g_hwndTabs), static_cast<int>(g_documents.size()));
+    if (index >= tabCount) return false;
+    RECT rawItemRect{};
+    if (!TabCtrl_GetItemRect(g_hwndTabs, index, &rawItemRect)) return false;
+    RECT tabsClient{};
+    GetClientRect(g_hwndTabs, &tabsClient);
+    bgRect = rawItemRect;
+    if (index == 0) bgRect.left = 0;
+    else {
+        RECT prevRect{};
+        if (TabCtrl_GetItemRect(g_hwndTabs, index - 1, &prevRect)) bgRect.left = prevRect.right;
+    }
+    if (index == tabCount - 1) bgRect.right = tabsClient.right;
+    else {
+        RECT nextRect{};
+        if (TabCtrl_GetItemRect(g_hwndTabs, index + 1, &nextRect)) bgRect.right = nextRect.left;
+    }
+    bgRect.top = 0;
+    bgRect.bottom = tabsClient.bottom;
+    return true;
+}
+
+static bool GetTabInteractionRect(int index, RECT &interRect)
+{
+    if (!g_hwndTabs || index < 0) return false;
+    const int tabCount = std::min(TabCtrl_GetItemCount(g_hwndTabs), static_cast<int>(g_documents.size()));
+    if (index >= tabCount) return false;
+    RECT rawItemRect{};
+    if (!TabCtrl_GetItemRect(g_hwndTabs, index, &rawItemRect)) return false;
+    RECT tabsClient{};
+    GetClientRect(g_hwndTabs, &tabsClient);
+    interRect = rawItemRect;
+    interRect.top = 0;
+    interRect.bottom = tabsClient.bottom;
+    if (interRect.right <= interRect.left) interRect.right = interRect.left + 1;
+    return true;
+}
+
 static void RebuildTabsControl();
 static void LoadStateFromDocument(int index);
 static bool OpenPathInTabs(const std::wstring &path, bool forceReplaceCurrent = false);
@@ -581,6 +633,7 @@ static void SetDocumentTabLabel(int index)
     TabCtrl_SetItem(g_hwndTabs, index, &item);
 }
 
+
 static void RebuildTabsControl()
 {
     if (!g_hwndTabs)
@@ -603,7 +656,7 @@ static void RebuildTabsControl()
     if (g_activeDocument >= 0 && g_activeDocument < static_cast<int>(g_documents.size())) {
         TabCtrl_SetCurSel(g_hwndTabs, g_activeDocument);
         RECT rc;
-        if (GetTabContentRect(g_activeDocument, rc)) {
+        if (GetTabInteractionRect(g_activeDocument, rc)) {
             g_tabSeamX.Reset(static_cast<float>(rc.left));
             g_tabSeamW.Reset(static_cast<float>(rc.right - rc.left));
         }
@@ -613,64 +666,20 @@ static void RebuildTabsControl()
     RedrawWindow(g_hwndTabs, nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW | RDW_NOERASE);
 }
 
-static bool GetTabContentRect(int index, RECT &contentRect)
-{
-    if (!g_hwndTabs || index < 0)
-        return false;
 
-    const int tabCount = std::min(TabCtrl_GetItemCount(g_hwndTabs), static_cast<int>(g_documents.size()));
-    if (index >= tabCount)
-        return false;
 
-    RECT rawItemRect{};
-    if (!TabCtrl_GetItemRect(g_hwndTabs, index, &rawItemRect))
-        return false;
 
-    RECT tabsClient{};
-    GetClientRect(g_hwndTabs, &tabsClient);
-
-    contentRect = rawItemRect;
-    if (index == 0)
-    {
-        contentRect.left = 0;
-    }
-    else
-    {
-        RECT prevRect{};
-        if (TabCtrl_GetItemRect(g_hwndTabs, index - 1, &prevRect))
-            contentRect.left = prevRect.right;
-    }
-
-    if (index == tabCount - 1)
-    {
-        contentRect.right = tabsClient.right;
-    }
-    else
-    {
-        RECT nextRect{};
-        if (TabCtrl_GetItemRect(g_hwndTabs, index + 1, &nextRect))
-            contentRect.right = nextRect.left;
-    }
-
-    contentRect.top = 0;
-    contentRect.bottom = tabsClient.bottom;
-    if (contentRect.right <= contentRect.left)
-        contentRect.right = contentRect.left + 1;
-    if (contentRect.bottom <= contentRect.top)
-        contentRect.bottom = contentRect.top + 1;
-    return true;
-}
 
 static bool GetTabCloseRect(int index, RECT &closeRect)
 {
-    RECT contentRect{};
-    if (!GetTabContentRect(index, contentRect))
+    RECT interRect{};
+    if (!GetTabInteractionRect(index, interRect))
         return false;
 
     const int glyphSize = TabScalePx(DesignSystem::kTabCloseGlyphSizePx);
     const int rightInset = TabScalePx(DesignSystem::kTabCloseRightInsetPx);
-    const int centerY = contentRect.top + ((contentRect.bottom - contentRect.top) / 2);
-    closeRect.right = contentRect.right - rightInset;
+    const int centerY = interRect.top + ((interRect.bottom - interRect.top) / 2);
+    closeRect.right = interRect.right - rightInset;
     closeRect.left = closeRect.right - glyphSize;
     closeRect.top = centerY - (glyphSize / 2);
     closeRect.bottom = closeRect.top + glyphSize;
@@ -779,7 +788,7 @@ static void SwitchToDocument(int index)
         TabCompactDocumentTextIfEligible(g_documents, previousIndex, g_activeDocument, kTabMemoryCompactThresholdBytes, SessionPathExists);
     TabCtrl_SetCurSel(g_hwndTabs, index);
     RECT rc;
-    if (GetTabContentRect(index, rc)) {
+    if (GetTabInteractionRect(index, rc)) {
         g_tabSeamX.target = static_cast<float>(rc.left);
         g_tabSeamW.target = static_cast<float>(rc.right - rc.left);
     }
@@ -1633,7 +1642,7 @@ static void DrawTabItemVisual(HDC hdc, int index, const RECT &rawItemRect, const
     const bool hovered = (index == g_hoverTabIndex);
     const bool dark = IsDarkMode();
     RECT contentRect = rawItemRect;
-    if (!GetTabContentRect(index, contentRect))
+    if (!GetTabBackgroundRect(index, contentRect))
         return;
 
     const int stroke = std::max(1, TabScalePx(DesignSystem::kTabSeamStrokePx));
@@ -1662,6 +1671,9 @@ static void DrawTabItemVisual(HDC hdc, int index, const RECT &rawItemRect, const
     if (drawFont)
         oldFont = SelectObject(hdc, drawFont);
 
+    const bool pressed = (index == g_pressedTabIndex);
+    const int tactileOffset = pressed ? TabScalePx(1) : 0;
+
     RECT textRect = contentRect;
     textRect.left += TabScalePx(DesignSystem::kTabTextPaddingHPx);
     textRect.right -= TabScalePx(DesignSystem::kTabTextPaddingHPx);
@@ -1680,6 +1692,13 @@ static void DrawTabItemVisual(HDC hdc, int index, const RECT &rawItemRect, const
                                       ? palette.activeTextColor
                                       : (hovered ? hoverTextColor : palette.textColor);
     SetTextColor(hdc, tabTextColor);
+
+    if (pressed)
+    {
+        textRect.left += tactileOffset;
+        textRect.top += tactileOffset;
+    }
+
     DrawTextW(hdc, label.c_str(), -1, &textRect, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX);
     if (oldFont)
         SelectObject(hdc, oldFont);
@@ -1687,6 +1706,10 @@ static void DrawTabItemVisual(HDC hdc, int index, const RECT &rawItemRect, const
     if (hovered && GetTabCloseRect(index, closeRect))
     {
         const bool closeHovered = g_hoverTabClose && (index == g_hoverTabIndex);
+
+        if (closeHovered)
+            FillSolidRectDc(hdc, closeRect, palette.closeHoverBg);
+
         const COLORREF closeColor = closeHovered
                                         ? DesignSystem::Color::kAccent
                                         : (dark ? BlendColor(DesignSystem::Color::kAccent, palette.textColor, 72)
@@ -1694,11 +1717,12 @@ static void DrawTabItemVisual(HDC hdc, int index, const RECT &rawItemRect, const
         HPEN pen = CreatePen(PS_SOLID, std::max(1, TabScalePx(1)), closeColor);
         HGDIOBJ oldPen = pen ? SelectObject(hdc, pen) : nullptr;
 
+
         const int inset = std::max(1, TabScalePx(1));
-        const int left = closeRect.left + inset;
-        const int top = closeRect.top + inset;
-        const int right = closeRect.right - inset;
-        const int bottom = closeRect.bottom - inset;
+        const int left = closeRect.left + inset + tactileOffset;
+        const int top = closeRect.top + inset + tactileOffset;
+        const int right = closeRect.right - inset + tactileOffset;
+        const int bottom = closeRect.bottom - inset + tactileOffset;
 
         MoveToEx(hdc, left, top, nullptr);
         LineTo(hdc, right, bottom);
@@ -1970,7 +1994,14 @@ static LRESULT CALLBACK TabsSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
         {
             g_draggingTab = true;
             g_dragTabIndex = index;
+            g_pressedTabIndex = index;
             SetCapture(hwnd);
+            InvalidateTabItem(hwnd, index);
+        }
+        else if (index >= 0 && IsTabCloseHotspot(index, pt))
+        {
+            g_pressedTabIndex = index;
+            InvalidateTabItem(hwnd, index);
         }
         break;
     }
@@ -2001,21 +2032,16 @@ static LRESULT CALLBACK TabsSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
         }
         break;
     }
-    case WM_MOUSELEAVE:
-    {
-        const int prevHoverIndex = g_hoverTabIndex;
-        g_trackingTabsMouse = false;
-        if (g_hoverTabIndex != -1 || g_hoverTabClose)
-        {
-            g_hoverTabIndex = -1;
-            g_hoverTabClose = false;
-            InvalidateTabItem(hwnd, prevHoverIndex);
-        }
-        break;
-    }
     case WM_LBUTTONUP:
     {
         const bool wasDragging = g_draggingTab;
+        if (g_pressedTabIndex >= 0)
+        {
+            const int oldPressed = g_pressedTabIndex;
+            g_pressedTabIndex = -1;
+            InvalidateTabItem(hwnd, oldPressed);
+        }
+
         POINT pt = {GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
         UpdateTabsHoverState(hwnd, pt);
         TCHITTESTINFO hit{};
@@ -2039,6 +2065,33 @@ static LRESULT CALLBACK TabsSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
             return 0;
         break;
     }
+    case WM_CAPTURECHANGED:
+    {
+        if (g_pressedTabIndex >= 0)
+        {
+            const int oldPressed = g_pressedTabIndex;
+            g_pressedTabIndex = -1;
+            InvalidateTabItem(hwnd, oldPressed);
+        }
+        if (reinterpret_cast<HWND>(lParam) != hwnd)
+        {
+            g_draggingTab = false;
+            g_dragTabIndex = -1;
+        }
+        break;
+    }
+    case WM_MOUSELEAVE:
+    {
+        const int prevHoverIndex = g_hoverTabIndex;
+        g_trackingTabsMouse = false;
+        if (g_hoverTabIndex != -1 || g_hoverTabClose)
+        {
+            g_hoverTabIndex = -1;
+            g_hoverTabClose = false;
+            InvalidateTabItem(hwnd, prevHoverIndex);
+        }
+        break;
+    }
     case WM_MBUTTONUP:
     {
         POINT pt = {GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
@@ -2052,13 +2105,6 @@ static LRESULT CALLBACK TabsSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
         }
         break;
     }
-    case WM_CAPTURECHANGED:
-        if (reinterpret_cast<HWND>(lParam) != hwnd)
-        {
-            g_draggingTab = false;
-            g_dragTabIndex = -1;
-        }
-        break;
     }
     return CallWindowProcW(g_origTabsProc, hwnd, msg, wParam, lParam);
 }
@@ -2930,8 +2976,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
     wc.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
     wc.lpszMenuName = MAKEINTRESOURCEW(IDR_MAINMENU);
-    wc.lpszClassName = L"SolumClass";
-    wc.hIconSm = LoadIconW(hInstance, MAKEINTRESOURCEW(IDI_IN_APP_ICON));
+    wc.lpszClassName = L"OtsoClass";
+    const int iconId = IsDarkMode() ? IDI_IN_APP_ICON_DARK : IDI_IN_APP_ICON_LIGHT;
+    wc.hIconSm = (HICON)LoadImageW(hInstance, MAKEINTRESOURCEW(iconId), IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR);
     RegisterClassExW(&wc);
 
     INITCOMMONCONTROLSEX icc = {sizeof(icc), ICC_BAR_CLASSES};
@@ -2939,7 +2986,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
     const auto &lang = GetLangStrings();
     std::wstring initialTitle = lang.untitled + L" - " + lang.appName;
-    g_hwndMain = CreateWindowExW(0, L"SolumClass", initialTitle.c_str(),
+    g_hwndMain = CreateWindowExW(0, L"OtsoClass", initialTitle.c_str(),
                                  WS_OVERLAPPEDWINDOW | WS_MAXIMIZEBOX | WS_CLIPCHILDREN, g_state.windowX, g_state.windowY, g_state.windowWidth, g_state.windowHeight,
                                  nullptr, nullptr, hInstance, nullptr);
     CrashDiagnosticsLog(L"Main window created");

@@ -1,5 +1,5 @@
-﻿/*
-  Solum
+/*
+  Otso
 
   Session and disk I/O helpers for tab documents.
 */
@@ -121,7 +121,7 @@ std::wstring SessionRuntimeFilePath()
         dirPath = modulePath;
     }
 
-    dirPath += L"\\TechnicalStandardNote";
+    dirPath += L"\\Otso";
     CreateDirectoryW(dirPath.c_str(), nullptr);
     return dirPath + L"\\session.dat";
 }

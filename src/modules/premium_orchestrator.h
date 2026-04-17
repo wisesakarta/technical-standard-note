@@ -1,5 +1,5 @@
-﻿/*
-  Solum
+/*
+  Otso
 
   Premium header render orchestration extracted from main window procedure.
   Owns Direct2D resources/timer lifecycle and keeps paint scope clipped.

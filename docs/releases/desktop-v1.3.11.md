@@ -1,4 +1,4 @@
-# Technical Standard Note Desktop v1.3.11
+# Otso Desktop v1.3.11
 
 ## Highlights
 
@@ -12,4 +12,4 @@
 
 ## Assets (Desktop-only)
 
-- `technical-standard-note-desktop-v1.3.11-windows-x64.exe`
+- `otso-desktop-v1.3.11-windows-x64.exe`

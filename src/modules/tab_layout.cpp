@@ -1,5 +1,5 @@
-﻿/*
-  Solum
+/*
+  Otso
 
   Tab layout and DPI/font metrics controller.
 */
@@ -83,17 +83,12 @@ void TabRefreshVisualMetrics()
 
     TabDestroyFonts();
 
+    const int fontHeight = -MulDiv(DesignSystem::kChromeFontPointSize, g_tabsDpi, 72);
     LOGFONTW baseLf{};
-    if (!SystemParametersInfoW(SPI_GETICONTITLELOGFONT, sizeof(baseLf), &baseLf, 0))
-    {
-        baseLf.lfHeight = -MulDiv(DesignSystem::kChromeFontPointSize, g_tabsDpi, 72);
-        wcscpy_s(baseLf.lfFaceName, DesignSystem::kUiFontPrimary);
-        baseLf.lfWeight = FW_NORMAL;
-    }
-    baseLf.lfHeight = -MulDiv(DesignSystem::kChromeFontPointSize, g_tabsDpi, 72);
-    baseLf.lfWeight = FW_NORMAL;
+    baseLf.lfHeight = fontHeight;
+    baseLf.lfWeight = FW_MEDIUM;
     baseLf.lfQuality = CLEARTYPE_QUALITY;
-    wcscpy_s(baseLf.lfFaceName, DesignSystem::kUiFontPrimary);
+    wcscpy_s(baseLf.lfFaceName, DesignSystem::kUiFontPrimaryMedium);
 
     g_hTabFontRegular = CreateFontIndirectW(&baseLf);
     if (!g_hTabFontRegular)
@@ -102,8 +97,12 @@ void TabRefreshVisualMetrics()
         g_hTabFontRegular = CreateFontIndirectW(&baseLf);
     }
 
-    LOGFONTW activeLf = baseLf;
-    activeLf.lfWeight = FW_NORMAL;
+    LOGFONTW activeLf{};
+    activeLf.lfHeight = fontHeight;
+    activeLf.lfWeight = FW_MEDIUM;
+    activeLf.lfQuality = CLEARTYPE_QUALITY;
+    wcscpy_s(activeLf.lfFaceName, DesignSystem::kUiFontPrimaryMedium);
+
     g_hTabFontActive = CreateFontIndirectW(&activeLf);
     if (!g_hTabFontActive)
     {
@@ -111,7 +110,7 @@ void TabRefreshVisualMetrics()
         g_hTabFontActive = CreateFontIndirectW(&activeLf);
     }
 
-    HFONT effectiveFont = g_hTabFontRegular ? g_hTabFontRegular : reinterpret_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
+    HFONT effectiveFont = g_hTabFontRegular;
     SendMessageW(g_hwndTabs, WM_SETFONT, reinterpret_cast<WPARAM>(effectiveFont), TRUE);
     SendMessageW(g_hwndTabs,
                  TCM_SETPADDING,

@@ -1,5 +1,5 @@
-﻿/*
-  Solum
+/*
+  Otso
 
   Pure tab model operations that do not depend on Win32 UI objects.
 */

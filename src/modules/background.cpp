@@ -1,5 +1,5 @@
-﻿/*
-  Solum
+/*
+  Otso
 
   Background image rendering with GDI+ support and multiple positioning modes.
   Supports tile, stretch, fit, fill, and nine anchor point positions.

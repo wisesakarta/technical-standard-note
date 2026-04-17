@@ -1,5 +1,5 @@
 /*
-  Solum Core
+  Otso Core
   
   High-fidelity Spring Physics (Second-Order Dynamics).
   Simulates a mass-spring-damper system for interruptible, organic UI motion.
@@ -20,8 +20,8 @@ namespace Core
         float v = 0.0f;      // Velocity
         
         // Physical parameters
-        float stiffness = 180.0f; // k: Tension of the spring
-        float damping = 22.0f;    // c: Friction (Critically damped at 2 * sqrt(stiffness) ~= 26)
+        float stiffness = 240.0f; // k: Tension of the spring
+        float damping = 36.0f;    // c: Friction (Critically damped at 2 * sqrt(stiffness) ~= 31)
         float mass = 1.0f;        // m: Inertia
         
         Spring() = default;

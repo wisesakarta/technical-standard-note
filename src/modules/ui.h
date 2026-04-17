@@ -1,5 +1,5 @@
-﻿/*
-  Solum
+/*
+  Otso
 
   User interface functions for window title, status bar, and control layout.
   Manages window resizing, status bar parts, and UI state synchronization.

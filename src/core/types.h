@@ -1,5 +1,5 @@
 /*
-  Solum
+  Otso
 
   Core type definitions including enums and structs for the notepad application.
   Provides encoding types, line endings, themes, background settings and app state.
@@ -12,10 +12,10 @@
 #include <string>
 #include <deque>
 
-#define APP_NAME L"Solum"
-#define APP_VERSION L"1.0.0"
+#define APP_NAME L"Otso"
+#define APP_VERSION L"1.1.0"
 #define APP_GITHUB_OWNER L"wisesakarta"
-#define APP_GITHUB_REPO L"solum"
+#define APP_GITHUB_REPO L"Otso"
 #define APP_REPOSITORY_URL L"https://github.com/wisesakarta/solum"
 #define ZOOM_MIN 25
 #define ZOOM_MAX 500

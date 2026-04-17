@@ -1,5 +1,5 @@
-﻿/*
-  Solum
+/*
+  Otso
 
   Shared tab document model used by tab/session controllers.
 */

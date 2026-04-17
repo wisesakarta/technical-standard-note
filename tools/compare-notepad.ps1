@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$LegacyExe = ".\build\mingw-debug\technical-standard-note.exe",
+    [string]$LegacyExe = ".\build\mingw-debug\otso.exe",
     [string]$MsNotepadExe = "$env:WINDIR\System32\notepad.exe",
     [string]$OutputDir = ".\research\perf-runs",
     [string]$CorpusDir = "",
@@ -36,7 +36,7 @@ function New-TextCorpusFile {
         [Parameter(Mandatory = $true)][long]$TargetBytes
     )
 
-    $line = "TechnicalStandardNote benchmark corpus line 0123456789 abcdefghijklmnopqrstuvwxyz`r`n"
+    $line = "Otso benchmark corpus line 0123456789 abcdefghijklmnopqrstuvwxyz`r`n"
     $utf8 = [System.Text.UTF8Encoding]::new($false)
     $stream = [System.IO.File]::Open($Path, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
     $writer = [System.IO.StreamWriter]::new($stream, $utf8, 4096)
@@ -350,7 +350,7 @@ foreach ($scenario in $scenarios) {
 
 $apps = @(
     [pscustomobject]@{
-        Name = "Technical Standard Note"
+        Name = "Otso"
         Path = $legacyExeFull
         ProcessName = Get-ExeProcessName $legacyExeFull
         WindowTitleHint = "Notepad"
@@ -375,23 +375,23 @@ if (-not $ForceCloseBeforeEachRun) {
 $legacyGateExitCode = $null
 $legacyGateReportCopied = $false
 if (-not $SkipLegacyInternalGate) {
-    Write-Host "[1/3] Running Technical Standard Note internal benchmark gate..."
+    Write-Host "[1/3] Running Otso internal benchmark gate..."
     $gateProc = Start-Process -FilePath $legacyExeFull -ArgumentList "--benchmark-ci" -PassThru -Wait
     $legacyGateExitCode = $gateProc.ExitCode
 
-    $benchDir = Join-Path $env:LOCALAPPDATA "TechnicalStandardNote\benchmarks"
+    $benchDir = Join-Path $env:LOCALAPPDATA "Otso\benchmarks"
     if (Test-Path -LiteralPath $benchDir) {
         $latestReport = Get-ChildItem -LiteralPath $benchDir -Filter "benchmark-*.txt" |
             Sort-Object LastWriteTime -Descending |
             Select-Object -First 1
         if ($latestReport) {
-            Copy-Item -LiteralPath $latestReport.FullName -Destination (Join-Path $runDir "technical-standard-note-internal-benchmark.txt") -Force
+            Copy-Item -LiteralPath $latestReport.FullName -Destination (Join-Path $runDir "otso-internal-benchmark.txt") -Force
             $legacyGateReportCopied = $true
         }
     }
 }
 else {
-    Write-Host "[1/3] Skipping Technical Standard Note internal benchmark gate (--SkipLegacyInternalGate)."
+    Write-Host "[1/3] Skipping Otso internal benchmark gate (--SkipLegacyInternalGate)."
 }
 
 $summaryRows = New-Object System.Collections.Generic.List[object]
@@ -567,7 +567,7 @@ $metrics = @(
 )
 
 $mdLines = New-Object System.Collections.Generic.List[string]
-$mdLines.Add("# Technical Standard Note vs Microsoft Notepad Benchmark Report") | Out-Null
+$mdLines.Add("# Otso vs Microsoft Notepad Benchmark Report") | Out-Null
 $mdLines.Add("") | Out-Null
 $mdLines.Add("- Run ID: $runId") | Out-Null
 $mdLines.Add("- Iterations: $Iterations") | Out-Null
@@ -576,13 +576,13 @@ $mdLines.Add("- Sample interval: ${SampleIntervalMs}ms") | Out-Null
 $mdLines.Add("- Warmup before sampling: ${WarmupMs}ms") | Out-Null
 $mdLines.Add("- Force-close before each run: $([bool]$ForceCloseBeforeEachRun)") | Out-Null
 $mdLines.Add("- Shared corpus directory: '$corpusDir'") | Out-Null
-$mdLines.Add("- Technical Standard Note executable: '$legacyExeFull'") | Out-Null
+$mdLines.Add("- Otso executable: '$legacyExeFull'") | Out-Null
 $mdLines.Add("- Microsoft Notepad executable: '$msNotepadFull'") | Out-Null
 if ($legacyGateExitCode -ne $null) {
     $gateStatus = if ($legacyGateExitCode -eq 0) { "PASS" } else { "FAIL (exit code $legacyGateExitCode)" }
-    $mdLines.Add("- Technical Standard Note internal benchmark gate: $gateStatus") | Out-Null
+    $mdLines.Add("- Otso internal benchmark gate: $gateStatus") | Out-Null
     if ($legacyGateReportCopied) {
-    $mdLines.Add("- Technical Standard Note benchmark report copied to: 'technical-standard-note-internal-benchmark.txt'") | Out-Null
+    $mdLines.Add("- Otso benchmark report copied to: 'otso-internal-benchmark.txt'") | Out-Null
     }
 }
 $mdLines.Add("") | Out-Null
@@ -590,10 +590,10 @@ $mdLines.Add("") | Out-Null
 foreach ($scenario in $scenarios) {
     $mdLines.Add("## $($scenario.Name)") | Out-Null
     $mdLines.Add("") | Out-Null
-    $mdLines.Add("| Metric | Technical Standard Note | Microsoft Notepad | Winner |") | Out-Null
+    $mdLines.Add("| Metric | Otso | Microsoft Notepad | Winner |") | Out-Null
     $mdLines.Add("| --- | ---: | ---: | --- |") | Out-Null
 
-    $legacyKey = "Technical Standard Note|$($scenario.Name)"
+    $legacyKey = "Otso|$($scenario.Name)"
     $msKey = "Microsoft Notepad|$($scenario.Name)"
     $legacyRow = $aggregateMap[$legacyKey]
     $msRow = $aggregateMap[$msKey]
@@ -610,7 +610,7 @@ foreach ($scenario in $scenarios) {
                 $winner = "Tie"
             }
             elseif ($legacyValue -lt $msValue) {
-                $winner = "Technical Standard Note"
+                $winner = "Otso"
             }
             else {
                 $winner = "Microsoft Notepad"
@@ -658,6 +658,6 @@ if ($legacyGateExitCode -ne $null) {
     else {
         $legacyGateLabel = "FAIL ($legacyGateExitCode)"
     }
-    Write-Host ("Technical Standard Note gate : {0}" -f $legacyGateLabel)
+    Write-Host ("Otso gate : {0}" -f $legacyGateLabel)
 }
 

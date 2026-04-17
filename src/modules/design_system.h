@@ -1,5 +1,5 @@
 /*
-  Solum
+  Otso
 
   Centralized desktop design-system tokens for visual consistency.
 */
@@ -10,7 +10,9 @@
 
 namespace DesignSystem
 {
-inline constexpr wchar_t kUiFontPrimary[] = L"Akkurat Mono LL";
+inline constexpr wchar_t kUiFontPrimary[] = L"General Sans";
+inline constexpr wchar_t kUiFontPrimaryMedium[] = L"General Sans Medium";
+inline constexpr wchar_t kUiFontPrimarySemibold[] = L"General Sans Semibold";
 inline constexpr wchar_t kUiFontFallback[] = L"Consolas";
 
 inline constexpr int kChromeFontPointSize = 9;
@@ -25,7 +27,7 @@ inline constexpr int kCommandBarIndentPx = 0;
 inline constexpr int kCommandBarHoverInsetPx = 0;
 
 inline constexpr int kTabTextPaddingHPx = 14;
-inline constexpr int kTabSeamStrokePx = 1;
+inline constexpr int kTabSeamStrokePx = 2;
 inline constexpr int kTabSeparatorInsetYPx = 6;
 inline constexpr int kTabSeparatorAlphaPct = 8;
 inline constexpr int kTabInnerPaddingHPx = 16;

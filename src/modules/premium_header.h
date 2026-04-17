@@ -1,5 +1,5 @@
 /*
-  Solum
+  Otso
   
   Premium header component using Direct2D for hardware-accelerated 
   visual effects and animations (Liquid Logo Reveal).

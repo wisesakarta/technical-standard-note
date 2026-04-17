@@ -3,8 +3,8 @@
 
 ## Purpose / Tujuan
 
-This file defines language rules for public notes and documentation in Technical Standard Note.  
-File ini menetapkan aturan bahasa untuk catatan dan dokumentasi publik di Technical Standard Note.
+This file defines language rules for public notes and documentation in Otso.  
+File ini menetapkan aturan bahasa untuk catatan dan dokumentasi publik di Otso.
 
 Goal / Tujuan:
 - Keep docs clear for global readers (English) and local collaborators (Indonesia).

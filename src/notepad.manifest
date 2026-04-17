@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
-  <assemblyIdentity version="1.0.0.0" processorArchitecture="*" name="Solum.SolumEditor" type="win32" />
-  <description>Solum - Modern Text Editor</description>
+  <assemblyIdentity version="1.1.0.0" processorArchitecture="*" name="Otso.OtsoEditor" type="win32" />
+  <description>Otso * Native Text Editor</description>
   <dependency>
     <dependentAssembly>
       <assemblyIdentity

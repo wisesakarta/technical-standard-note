@@ -1,5 +1,5 @@
 /*
-  Solum
+  Otso
 
   Editor control functions for text manipulation, font rendering, and zoom control.
   Handles RichEdit control subclassing, word wrap, and cursor position tracking.
@@ -435,7 +435,7 @@ void ConfigureEditorControl(HWND hwnd)
     ApplyFlatScrollbarStyle(hwnd);
     EnsureNativeScrollbarsHidden(hwnd);
 
-    SetEditorLineSpacing(hwnd, 1.2f); // Renaissance Rhythm (1.2x)
+    SetEditorLineSpacing(hwnd, 1.2f);
 }
 
 void ApplyEditorViewportPadding()

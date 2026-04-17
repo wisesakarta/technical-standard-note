@@ -1,5 +1,5 @@
 /*
-  Solum
+  Otso
 
   Premium header render orchestration extracted from main.cpp.
 */

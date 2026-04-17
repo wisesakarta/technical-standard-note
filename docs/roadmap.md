@@ -1,4 +1,4 @@
-# Technical Standard Note Roadmap
+# Otso Roadmap
 
 Roadmap ini disusun dari audit codebase saat ini (Win32 C++), fokus pada stabilitas, performa, dan UX modern tanpa mengorbankan lightweight footprint.
 

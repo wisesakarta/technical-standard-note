@@ -6,7 +6,7 @@ Selamat datang di jurnal pembelajaran Saka Note! Di sini kita mencatat evolusi a
 
 Saka Note dibangun dengan struktur **Single Activity, Multi-Composable**.
 - **MainActivity**: Stasiun pusat yang memulai segalanya.
-- **EditorApp.kt**: Jantung dari aplikasi, tempat di mana `TechnicalStandardNoteMobileApp` mengatur orkestrasi editor, tab, dan sistem keamanan.
+- **EditorApp.kt**: Jantung dari aplikasi, tempat di mana `OtsoMobileApp` mengatur orkestrasi editor, tab, dan sistem keamanan.
 - **Root Box Pattern**: Kita menggunakan satu `Box` besar sebagai root untuk memungkinkan layering (seperti overlay App Lock dan feedback loading) di atas UI utama.
 - **Recursive Tree**: Struktur folder menggunakan pola *Adjacency List* di database (parentId) yang dirender secara rekursif di UI menggunakan `RecursiveFolderList`. Analogi: "Aplikasi ini seperti akar pohon yang terus bercabang ke bawah tanpa batas."
 

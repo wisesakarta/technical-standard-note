@@ -1,5 +1,5 @@
 /*
-  Solum
+  Otso
 
   Update check flow for querying GitHub releases and presenting user prompts.
 */
@@ -253,7 +253,7 @@ bool FetchLatestReleaseMetadata(std::string &tagName, std::string &releaseUrl)
 {
     const std::wstring releaseApiPath = std::wstring(L"/repos/") + APP_GITHUB_OWNER + L"/" + APP_GITHUB_REPO + L"/releases/latest";
 
-    ScopedWinHttpHandle hSession(WinHttpOpen((std::wstring(L"TechnicalStandardNote/") + APP_VERSION).c_str(),
+    ScopedWinHttpHandle hSession(WinHttpOpen((std::wstring(L"Otso/") + APP_VERSION).c_str(),
                                              WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
                                              WINHTTP_NO_PROXY_NAME,
                                              WINHTTP_NO_PROXY_BYPASS,

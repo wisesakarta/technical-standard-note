@@ -1,5 +1,5 @@
-﻿/*
-  Solum
+/*
+  Otso
 
   Tab layout and DPI/font metrics controller.
 */

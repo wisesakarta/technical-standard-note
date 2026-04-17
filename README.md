@@ -1,12 +1,12 @@
-# Solum
+# Otso
 
 <p align="center">
-  <img src="assets/icons/app_icon.png" alt="Solum Monolith" width="128">
+  <img src="assets/icons/app_icon.png" alt="Otso Monolith" width="128">
 </p>
 
-**Solum** is a high-fidelity, Win32 text editor focused on speed, stability, and the "Renaissance of Software" craftsmanship.
+**Otso** is a high-fidelity, Win32 text editor focused on speed, stability, and the "Renaissance of Software" craftsmanship.
 
-**Solum** adalah editor teks Win32 beresolusi tinggi yang berfokus pada kecepatan, stabilitas, dan keahlian rekayasa perangkat lunak "Renaissance".
+**Otso** adalah editor teks Win32 beresolusi tinggi yang berfokus pada kecepatan, stabilitas, dan keahlian rekayasa perangkat lunak "Renaissance".
 
 ## Scope
 
@@ -45,12 +45,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\dev-build.ps1 -Confi
 ## Runtime Benchmark
 
 ```powershell
-.\build\mingw-debug\Solum.exe --benchmark-ci
+.\build\mingw-debug\Otso.exe --benchmark-ci
 ```
 
 Benchmark reports are written to:
 
-- `%LOCALAPPDATA%\Solum\benchmarks\benchmark-YYYYMMDD-HHMMSS.txt`
+- `%LOCALAPPDATA%\Otso\benchmarks\benchmark-YYYYMMDD-HHMMSS.txt`
 
 ## Release Channels
 
@@ -61,8 +61,8 @@ Repository CI workflow: `.github/workflows/build.yml`
 
 Release assets are intentionally minimal:
 
-- Desktop: `Solum-desktop-... .exe`
-- Mobile: `Solum-mobile-... .apk`
+- Desktop: `Otso-desktop-... .exe`
+- Mobile: `Otso-mobile-... .apk`
 
 ## Repository Hygiene Rules
 

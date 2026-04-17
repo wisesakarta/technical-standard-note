@@ -1,5 +1,5 @@
-﻿/*
-  Solum
+/*
+  Otso
 
   File I/O operations with multi-encoding support (UTF-8, UTF-16, ANSI).
   Handles BOM detection, line ending conversion, and recent files tracking.
